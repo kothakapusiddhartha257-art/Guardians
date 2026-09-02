@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-obsidian">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRACEGUARD AI — Email Intelligence</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-wrapper">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-shield">🛡️</div>
+        <div>
+          <div class="brand-name">
+            <span>TRACEGUARD</span>
+            <span class="brand-badge">AI</span>
+          </div>
+          <span class="brand-eyebrow">Email Intelligence</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <select id="themeSelect" class="theme-selector" title="Switch Theme">
+          <option value="theme-obsidian" selected>Obsidian</option>
+          <option value="theme-deep-space">Deep Space</option>
+          <option value="theme-forensic-paper">Forensic Paper</option>
+          <option value="theme-midnight-violet">Midnight Violet</option>
+          <option value="theme-arctic-intel">Arctic Intel</option>
+        </select>
+        <div class="status-indicator" id="statusIndicator">
+          <span class="status-pulse"></span>
+          <span class="status-text">Active</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation / Mode Tabs -->
+    <nav class="mode-tabs">
+      <button class="mode-btn active" data-tab="tab-live">📧 Active Email</button>
+      <button class="mode-btn" data-tab="tab-manual">✍️ Manual</button>
+      <button class="mode-btn" data-tab="tab-url">🔗 Link</button>
+      <button class="mode-btn" data-tab="tab-presets">🚨 Presets</button>
+    </nav>
+
+    <!-- Tab 1: Live Webmail Scan -->
+    <section id="tab-live" class="tab-pane active">
+      <div class="scan-action-box">
+        <button id="btnScanWebmail" class="btn-action-primary">
+          <span>Scan Open Webmail Message</span>
+          <span class="btn-icon">⚡</span>
+        </button>
+      </div>
+
+      <div id="webmailMeta" class="webmail-meta-box hidden">
+        <div class="meta-line">
+          <span class="meta-label">Client:</span>
+          <span id="metaClient" class="meta-val">-</span>
+        </div>
+        <div class="meta-line">
+          <span class="meta-label">Subject:</span>
+          <span id="metaSubject" class="meta-val truncate">-</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 2: Manual Check -->
+    <section id="tab-manual" class="tab-pane">
+      <div class="form-group">
+        <label>Sender & Reply Address</label>
+        <input type="text" id="manualSender" placeholder="CEO John <ceo@company-secure.com>">
+      </div>
+      <div class="form-group">
+        <label>Subject Line</label>
+        <input type="text" id="manualSubject" placeholder="URGENT: Wire Transfer Required Before 5 PM">
+      </div>
+      <div class="form-group">
+        <label>Body Content</label>
+        <textarea id="manualBody" rows="2" placeholder="Paste email body or suspicious directive text..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button id="btnManualAnalyze" class="btn-action-primary flex-1">Analyze</button>
+        <button id="btnManualSample" class="btn-action-secondary">Load Sample</button>
+      </div>
+    </section>
+
+    <!-- Tab 3: Link Check -->
+    <section id="tab-url" class="tab-pane">
+      <div class="form-group">
+        <label>Target URL / Link</label>
+        <input type="url" id="urlInput" placeholder="https://bit.ly/login-verify or http://185.23.11.4/auth">
+      </div>
+      <button id="btnUrlInspect" class="btn-action-primary w-full">Inspect Link Destination</button>
+    </section>
+
+    <!-- Tab 4: Presets -->
+    <section id="tab-presets" class="tab-pane">
+      <div class="form-group">
+        <label>Threat Scenario</label>
+        <select id="presetSelect" class="dropdown-input">
+          <option value="bec" selected>🚨 BEC Wire Transfer Fraud (94%)</option>
+          <option value="credential">⚠️ M365 Password Phish (88%)</option>
+          <option value="malware">☣️ Invoice EXE Malware (96%)</option>
+          <option value="clean">✅ Clean Security Digest (4%)</option>
+        </select>
+      </div>
+      <button id="btnLoadPreset" class="btn-action-primary w-full">Load & Inspect Preset</button>
+    </section>
+
+    <!-- Analyzing Intelligence Pipeline State (Shown during scan) -->
+    <div id="analyzingPipeline" class="pipeline-card hidden">
+      <div class="pipeline-header">
+        <span class="eyebrow-text">Intelligence Pipeline</span>
+        <span class="pipeline-active-text">Analyzing Message...</span>
+      </div>
+      <ul class="pipeline-steps">
+        <li class="step done"><span class="step-check">✓</span> Extracting MIME headers</li>
+        <li class="step done"><span class="step-check">✓</span> Verifying cryptographic identity (SPF/DKIM)</li>
+        <li class="step active"><span class="step-dot">●</span> Reconstructing SMTP relay trust frontier</li>
+        <li class="step pending"><span class="step-dot">○</span> Checking URL redirects & homoglyphs</li>
+        <li class="step pending"><span class="step-dot">○</span> Correlating cross-case campaigns</li>
+      </ul>
+    </div>
+
+    <!-- Intelligence Results Section -->
+    <main id="resultsContainer" class="results-layout">
+      
+      <!-- 1. EMAIL VERDICT HERO -->
+      <section class="verdict-hero" id="verdictHero">
+        <div class="verdict-top-bar">
+          <span class="verdict-tag" id="verdictTag">⚠ HIGH RISK</span>
+          <span class="action-tag" id="actionTag">QUARANTINED</span>
+        </div>
+
+        <div class="verdict-center">
+          <div class="verdict-score-group">
+            <span class="score-number" id="scoreNumber">76%</span>
+            <span class="score-label">THREAT SCORE</span>
+          </div>
+          <div class="verdict-meta">
+            <h2 class="email-subject-text" id="emailSubject">
+              URGENT: Vendor Payment Account Change & Wire Transfer Directive
+            </h2>
+            <p class="email-sender-text" id="emailSender">
+              finance@secure-exchange-transfer.xyz
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. WHY IT WAS FLAGGED (Top 3 Signals) -->
+      <section class="section-box">
+        <div class="section-header">
+          <span class="eyebrow-text">Why It Was Flagged</span>
+          <span class="section-badge">Top Signals</span>
+        </div>
+        <div class="signals-list" id="signalsList">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- 3. SENDER IDENTITY MISMATCH -->
+      <section class="section-box" id="senderIdentityBox">
+        <div class="section-header">
+          <span class="eyebrow-text">Sender Identity Comparison</span>
+        </div>
+        <div class="identity-comparison">
+          <div class="id-col">
+            <span class="id-label">Claimed Sender</span>
+            <span class="id-val" id="claimedDomain">acme.com</span>
+          </div>
+          <div class="id-arrow">&darr;</div>
+          <div class="id-col">
+            <span class="id-label">Actual Reply Path</span>
+            <span class="id-val mismatch" id="actualDomain">secure-exchange-transfer.xyz</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. 3-AXIS INTELLIGENCE -->
+      <section class="section-box">
+        <div class="section-header">
+          <span class="eyebrow-text">3-Axis Calibrated Scoring</span>
+          <span class="section-badge">Late Fusion</span>
+        </div>
+        <div class="axis-bars">
+          <div class="axis-row">
+            <div class="axis-meta">
+              <span>Threat Severity</span>
+              <strong id="axisThreatVal" class="text-threat">76%</strong>
+            </div>
+            <div class="track"><div id="axisThreatBar" class="fill fill-threat" style="width: 76%;"></div></div>
+          </div>
+          <div class="axis-row">
+            <div class="axis-meta">
+              <span>Infrastructure Trust</span>
+              <strong id="axisInfraVal" class="text-infra">83%</strong>
+            </div>
+            <div class="track"><div id="axisInfraBar" class="fill fill-infra" style="width: 83%;"></div></div>
+          </div>
+          <div class="axis-row">
+            <div class="axis-meta">
+              <span>Attribution Confidence</span>
+              <strong id="axisAttrVal" class="text-attrib">40%</strong>
+            </div>
+            <div class="track"><div id="axisAttrBar" class="fill fill-attrib" style="width: 40%;"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. AUTHENTICATION PROTOCOLS -->
+      <section class="section-box">
+        <div class="section-header">
+          <span class="eyebrow-text">Authentication Protocols</span>
+        </div>
+        <div class="auth-grid">
+          <div class="auth-card" id="authSpf">
+            <span class="auth-name">SPF</span>
+            <span class="auth-status fail" id="authSpfVal">FAIL</span>
+          </div>
+          <div class="auth-card" id="authDkim">
+            <span class="auth-name">DKIM</span>
+            <span class="auth-status fail" id="authDkimVal">FAIL</span>
+          </div>
+          <div class="auth-card" id="authDmarc">
+            <span class="auth-name">DMARC</span>
+            <span class="auth-status fail" id="authDmarcVal">FAIL</span>
+          </div>
+          <div class="auth-card" id="authArc">
+            <span class="auth-name">ARC</span>
+            <span class="auth-status pass" id="authArcVal">PASS</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. QUICK ACTIONS & FULL INVESTIGATION REDIRECTION -->
+      <div class="footer-actions">
+        <div class="quick-action-row" id="quickActionRow">
+          <button id="btnPrimaryAction" class="btn-action-danger flex-1">
+            Quarantine Email
+          </button>
+          <button id="btnSecondaryAction" class="btn-action-secondary">
+            Report
+          </button>
+        </div>
+
+        <button id="btnOpenFullInvestigation" class="btn-full-investigation">
+          <span>OPEN FORENSIC INVESTIGATION</span>
+          <span class="arrow-icon">→</span>
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <script src="detector.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
