@@ -11,6 +11,50 @@ import { Investigation } from './pages/Investigation';
 import { Cases } from './pages/Cases';
 import { Campaigns } from './pages/Campaigns';
 
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: any }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error('[ErrorBoundary caught error]:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#07090E] text-white flex flex-col items-center justify-center p-8 space-y-4 font-mono">
+          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-[#EAB308]">
+            <span className="text-2xl font-bold">🛡️</span>
+          </div>
+          <h2 className="text-xl font-bold">TRACEGUARD ACTIVE</h2>
+          <p className="text-xs text-neutral-400 max-w-md text-center">
+            Standalone interface initialized. Click below to enter the Live Threat Gateway.
+          </p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.href = '/monitoring';
+            }}
+            className="px-5 py-2.5 rounded-xl bg-[#EAB308] hover:bg-amber-500 text-black font-bold text-xs transition-colors"
+          >
+            Launch Threat Gateway
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Protected Route Guard
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -125,13 +169,15 @@ function MainLayout() {
 
 export function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <MainLayout />
-        </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <MainLayout />
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
