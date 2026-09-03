@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "TRACEGUARD AI — Threat & Forensic Gateway",
+  "name": "TRACEGUARD AI — Email Threat Intelligence",
   "version": "2.0.0",
   "description": "Real-time AI email threat detection, 3-axis risk scoring, and in-page digital forensic intelligence for Gmail.",
   "icons": {
@@ -9,7 +9,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "popup/popup.html",
     "default_title": "TRACEGUARD AI — Email Intelligence",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -35,7 +35,8 @@
     "https://outlook.office365.com/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background/index.js",
+    "type": "module"
   },
   "content_scripts": [
     {
@@ -45,9 +46,10 @@
         "https://outlook.office.com/*",
         "https://outlook.office365.com/*"
       ],
-      "js": ["detector.js", "content.js"],
-      "css": ["content.css"],
+      "js": ["content/index.js"],
+      "css": ["content/panel.css"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "minimum_chrome_version": "116"
 }
