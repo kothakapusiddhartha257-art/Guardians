@@ -1,0 +1,11 @@
+From: PayPal Security <security@paypa1.com>
+Reply-To: verify@bad.example
+To: victim@example.net
+Subject: Verify immediately
+Date: Mon, 01 Jan 2024 10:05:00 +0000
+Message-ID: <x@bad.example>
+Return-Path: <bounce@bad.example>
+Authentication-Results: mx.example.net; spf=pass; dkim=pass; dmarc=pass
+Received: from attack.example (attack.example [1.1.1.1]) by mx.example.net; Mon, 01 Jan 2024 10:00:00 +0000
+
+Please verify.
