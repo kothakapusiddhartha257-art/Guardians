@@ -183,9 +183,12 @@ async def execute_analysis_dag(
         prev_hash=initial_custody.current_hash
     )
 
+    report_id = f"REP-2026-{uuid.uuid4().hex[:6].upper()}"
+
     bundle = FullEmailInvestigationBundle(
         email=parsed,
         case_id=case_id,
+        report_id=report_id,
         risk_score=risk_score,
         auth=auth_result,
         header_anomalies=header_anomalies,
@@ -200,8 +203,9 @@ async def execute_analysis_dag(
         related_case_ids=correlated_case_ids
     )
 
-    # Save to Cache
+    # Save to Cache with dual indexing (email_id and report_id)
     INVESTIGATION_CACHE[email_id] = bundle
+    INVESTIGATION_CACHE[report_id] = bundle
     ACTIVE_CASES_DB[case_id] = {
         "case_id": case_id,
         "title": parsed.headers_normalized.subject or "Untitled Case",

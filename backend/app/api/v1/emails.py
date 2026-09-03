@@ -46,6 +46,7 @@ async def upload_and_analyze_email(
         "status": "COMPLETE",
         "email_id": bundle.email.email_id,
         "case_id": bundle.case_id,
+        "report_id": bundle.report_id or bundle.email.email_id,
         "sha256": bundle.email.sha256,
         "threat_score": bundle.risk_score.threat_score,
         "classification": bundle.risk_score.classification
@@ -94,6 +95,7 @@ async def ingest_raw_email(req: EmailIngestRequest):
         "status": "COMPLETE",
         "email_id": bundle.email.email_id,
         "case_id": bundle.case_id,
+        "report_id": bundle.report_id or bundle.email.email_id,
         "gmail_message_id": req.gmail_message_id or "",
         "subject": subj,
         "from_address": from_addr,
@@ -117,16 +119,22 @@ async def ingest_raw_email(req: EmailIngestRequest):
         "relay_hops_count": len(bundle.relay_hops),
         "related_cases_count": bundle.related_cases_count,
         "related_case_ids": bundle.related_case_ids,
-        "investigation_url": f"/investigation?id={bundle.email.email_id}",
+        "investigation_url": f"/investigation?id={bundle.report_id or bundle.email.email_id}",
         "created_at": bundle.chain_of_custody[0].timestamp if bundle.chain_of_custody else ""
     }
 
 
 @router.get("/{email_id}")
 async def get_full_email_investigation(email_id: str) -> FullEmailInvestigationBundle:
-    if email_id not in INVESTIGATION_CACHE:
-        raise HTTPException(status_code=404, detail="Email investigation not found")
-    return INVESTIGATION_CACHE[email_id]
+    if email_id in INVESTIGATION_CACHE:
+        return INVESTIGATION_CACHE[email_id]
+    for bundle in INVESTIGATION_CACHE.values():
+        if (bundle.report_id and bundle.report_id == email_id) or \
+           bundle.case_id == email_id or \
+           bundle.email.email_id == email_id or \
+           bundle.email.sha256 == email_id:
+            return bundle
+    raise HTTPException(status_code=404, detail="Email investigation not found")
 
 
 @router.get("/{email_id}/status")

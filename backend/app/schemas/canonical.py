@@ -271,6 +271,7 @@ class CampaignRecord(BaseModel):
 class FullEmailInvestigationBundle(BaseModel):
     email: ParsedEmail
     case_id: str
+    report_id: Optional[str] = None
     risk_score: ThreeAxisScore
     auth: AuthResult
     header_anomalies: List[HeaderAnomalyRuleResult]
