@@ -18,6 +18,8 @@ export const EmailMonitoring: React.FC = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [isSyncingGmail, setIsSyncingGmail] = useState(false);
   const [oauthStatus, setOauthStatus] = useState<any>(null);
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const [isAuthenticatingGoogle, setIsAuthenticatingGoogle] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
   const [isPolicyOpen, setIsPolicyOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -243,6 +245,58 @@ export const EmailMonitoring: React.FC = () => {
     }
   };
 
+  const handleContinueWithGoogle = async () => {
+    setIsAuthenticatingGoogle(true);
+    setOauthError(null);
+    try {
+      const res = await fetch('/api/v1/oauth/gmail/auth-url');
+      const data = await res.json();
+      if (data.auth_url) {
+        window.location.href = data.auth_url;
+      } else {
+        throw new Error(data.detail || 'Failed to generate Google authorization URL');
+      }
+    } catch (err: any) {
+      setOauthError(err.message || 'Google OAuth failed to start');
+      setIsAuthenticatingGoogle(false);
+    }
+  };
+
+  const handleSyncGmailOAuth = async () => {
+    setIsSyncingGmail(true);
+    setOauthError(null);
+    try {
+      const res = await fetch('/api/v1/oauth/gmail/sync-now', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 20 })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToastMessage(`Incremental sync complete: ${data.new_messages_analyzed || 0} new threats analyzed, ${data.duplicates_skipped || 0} duplicates deduplicated.`);
+        setTimeout(() => setToastMessage(null), 5000);
+        await loadData();
+      } else {
+        throw new Error(data.detail || 'Gmail sync failed');
+      }
+    } catch (err: any) {
+      setOauthError(err.message || 'Gmail sync error');
+    } finally {
+      setIsSyncingGmail(false);
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    try {
+      await fetch('/api/v1/oauth/gmail/disconnect', { method: 'POST' });
+      setToastMessage('Google account disconnected.');
+      setTimeout(() => setToastMessage(null), 4000);
+      await loadData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleApplyOverride = async () => {
     if (!overrideModalEmail) return;
     try {
@@ -380,6 +434,150 @@ export const EmailMonitoring: React.FC = () => {
               <Sliders className="size-3.5" />
             </button>
           </div>
+        </div>
+      </section>
+
+      {/* 2. GOOGLE OAUTH 2.0 GATEWAY & INCREMENTAL SYNC (MASTER PLAN PHASES 3 & 11) */}
+      <section className="p-6 sm:p-8 rounded-3xl border border-border bg-surface shadow-2xl space-y-6 relative overflow-hidden">
+        <div className="absolute -right-20 -top-20 w-80 h-80 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border/70">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2.5">
+              <span className="p-2 rounded-xl bg-primary/10 text-primary border border-primary/20">
+                <svg className="size-5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+              </span>
+              <div>
+                <span className="eyebrow text-[10px] text-primary">Autonomous Ingestion</span>
+                <h2 className="text-xl sm:text-2xl font-black text-primaryText tracking-tight">
+                  GOOGLE OAUTH &amp; GMAIL SYNC
+                </h2>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              {oauthStatus?.is_authorized ? (
+                <>
+                  <span className="font-mono text-xs sm:text-sm font-bold text-primaryText px-3 py-1 rounded-lg bg-surfaceSubtle border border-border">
+                    {oauthStatus.user_email || 'Authenticated Account'}
+                  </span>
+                  <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-threatSafe/15 text-threatSafe border border-threatSafe/30">
+                    <span className="size-1.5 rounded-full bg-threatSafe animate-pulse"></span>
+                    GMAIL CONNECTED
+                  </span>
+                  {oauthStatus.last_synced_at && (
+                    <span className="text-xs text-mutedText font-mono">
+                      Last synced: {new Date(oauthStatus.last_synced_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                  )}
+                </>
+              ) : oauthStatus?.sync_state === 'needs_reauth' ? (
+                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-threatCritical/15 text-threatCritical border border-threatCritical/30">
+                  <AlertTriangle className="size-3" />
+                  ACCESS REVOKED / EXPIRED (RECONNECT)
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-mutedText/15 text-secondaryText border border-border">
+                  NOT SIGNED IN
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {oauthStatus?.is_authorized ? (
+              <>
+                <button
+                  onClick={handleSyncGmailOAuth}
+                  disabled={isSyncingGmail}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primaryDark text-white text-xs font-bold shadow-md shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                >
+                  {isSyncingGmail ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                  <span>{isSyncingGmail ? 'Syncing History API...' : 'Sync Gmail Now'}</span>
+                </button>
+
+                <button
+                  onClick={handleDisconnectGoogle}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surfaceSubtle hover:bg-threatCritical/10 text-mutedText hover:text-threatCritical text-xs font-bold border border-border hover:border-threatCritical/30 transition-all"
+                  title="Revoke Google OAuth token and disconnect"
+                >
+                  <span>Disconnect</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleContinueWithGoogle}
+                disabled={isAuthenticatingGoogle}
+                className="flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-white hover:bg-neutral-50 text-neutral-900 text-sm font-bold shadow-lg border border-neutral-300 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                <svg className="size-4" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>{isAuthenticatingGoogle ? 'Connecting to Google...' : 'Continue with Google'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {oauthError && (
+          <div className="p-4 rounded-2xl bg-threatCritical/10 border border-threatCritical/30 flex items-start justify-between gap-3 text-threatCritical text-xs">
+            <div className="flex items-center gap-2">
+              <AlertOctagon className="size-4 shrink-0" />
+              <span>{oauthError}</span>
+            </div>
+            <button
+              onClick={handleContinueWithGoogle}
+              className="font-bold underline hover:text-threatCriticalDark"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {oauthStatus?.is_authorized && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-surfaceSubtle border border-border/80">
+              <div className="eyebrow text-[9px] text-mutedText">INBOUND INGESTED</div>
+              <div className="text-2xl font-black font-mono text-primaryText mt-1">
+                {oauthStatus.summary?.total_ingested || 0}
+              </div>
+            </div>
+            <div className="p-4 rounded-2xl bg-threatCritical/5 border border-threatCritical/20">
+              <div className="eyebrow text-[9px] text-threatCritical">QUARANTINED</div>
+              <div className="text-2xl font-black font-mono text-threatCritical mt-1">
+                {oauthStatus.summary?.quarantined || 0}
+              </div>
+            </div>
+            <div className="p-4 rounded-2xl bg-threatSuspicious/5 border border-threatSuspicious/20">
+              <div className="eyebrow text-[9px] text-threatSuspicious">FLAGGED</div>
+              <div className="text-2xl font-black font-mono text-threatSuspicious mt-1">
+                {oauthStatus.summary?.suspicious || 0}
+              </div>
+            </div>
+            <div className="p-4 rounded-2xl bg-threatSafe/5 border border-threatSafe/20">
+              <div className="eyebrow text-[9px] text-threatSafe">DELIVERED CLEAN</div>
+              <div className="text-2xl font-black font-mono text-threatSafe mt-1">
+                {oauthStatus.summary?.clean || 0}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between text-[11px] text-mutedText pt-2">
+          <span>
+            Scope: <code className="text-primaryText">gmail.readonly</code> &bull; Tokens encrypted at rest (AES/Fernet). Never stored in browser.
+          </span>
+          <span className="text-primary hover:underline cursor-pointer">
+            Data Handling &amp; Privacy Policy &rarr;
+          </span>
         </div>
       </section>
 

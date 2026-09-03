@@ -1,5 +1,5 @@
 from typing import Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -20,9 +20,16 @@ class OAuthExchangeRequest(BaseModel):
     redirect_uri: Optional[str] = None
 
 
+class SyncRequest(BaseModel):
+    limit: int = 20
+
+
 @router.get("/status")
 async def get_gmail_oauth_status():
-    """Check current Google OAuth 2.0 configuration, authorization status, and authorized email."""
+    """
+    Check current Google OAuth 2.0 configuration, authorization status,
+    incremental sync state, and user email (Phase 7 Specification).
+    """
     return gmail_oauth_manager.get_auth_status()
 
 
@@ -48,7 +55,7 @@ async def save_gmail_credentials(req: ClientCredentialsRequest):
 
 @router.get("/auth-url")
 async def get_google_auth_url(redirect_uri: Optional[str] = Query(None)):
-    """Generate the Google OAuth 2.0 Consent Screen URL for the user to authorize Gmail access."""
+    """Generate the Google OAuth 2.0 Consent Screen URL with PKCE / CSRF state."""
     red_uri = redirect_uri or "http://127.0.0.1:8000/api/v1/oauth/gmail/callback"
     try:
         auth_url, state = gmail_oauth_manager.get_authorization_url(red_uri)
@@ -63,7 +70,7 @@ async def get_google_auth_url(redirect_uri: Optional[str] = Query(None)):
 
 @router.post("/exchange")
 async def exchange_google_oauth_code(req: OAuthExchangeRequest):
-    """Exchanges Google authorization code for access token via backend without exposing client secret in client extensions."""
+    """Exchanges Google authorization code for access token via backend without exposing client secret."""
     redirect_uri = req.redirect_uri or "http://127.0.0.1:8000/api/v1/oauth/gmail/callback"
     try:
         token_data = gmail_oauth_manager.exchange_code_for_token(req.code, redirect_uri)
@@ -80,10 +87,13 @@ async def exchange_google_oauth_code(req: OAuthExchangeRequest):
 
 @router.post("/refresh")
 async def refresh_google_oauth_token():
-    """Silently refreshes Google OAuth access token using server-persisted refresh token."""
+    """Silently refreshes Google OAuth access token using server-persisted encrypted refresh token."""
     creds = gmail_oauth_manager.get_valid_credentials()
     if not creds or not creds.token:
-        raise HTTPException(status_code=401, detail="No valid refresh token or authorization found.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google authorization expired or revoked. Please reconnect."
+        )
     return {
         "status": "success",
         "access_token": creds.token,
@@ -97,7 +107,10 @@ async def google_oauth_callback(
     error: Optional[str] = Query(None),
     state: Optional[str] = Query(None)
 ):
-    """Handles OAuth 2.0 callback from Google, exchanges authorization code for tokens, and connects mailbox."""
+    """
+    Handles OAuth 2.0 callback from Google, securely exchanges code for encrypted token,
+    and redirects user back to TRACEGUARD with authenticated status.
+    """
     if error:
         return RedirectResponse(url=f"http://127.0.0.1:5173/monitoring?oauth_error={error}")
 
@@ -107,10 +120,9 @@ async def google_oauth_callback(
     redirect_uri = "http://127.0.0.1:8000/api/v1/oauth/gmail/callback"
     try:
         token_data = gmail_oauth_manager.exchange_code_for_token(code, redirect_uri)
-        user_email = token_data.get("user_email", "corporate@gmail.com")
+        user_email = token_data.get("user_email", "authenticated.user@gmail.com")
 
         # Automatically connect Gmail mailbox in EmailMonitor
-        conn_id = "mailbox-gmail-oauth"
         await email_monitor.connect_mailbox(
             provider_type="gmail",
             display_name=f"Gmail Gateway ({user_email})",
@@ -123,26 +135,41 @@ async def google_oauth_callback(
 
 
 @router.post("/sync-now")
-async def sync_gmail_inbox_now():
-    """Fetch unread/recent raw emails from authorized Gmail inbox into the TRACEGUARD DAG pipeline."""
-    # Find Gmail provider in email_monitor
-    gmail_provider = None
-    for p in email_monitor.providers.values():
-        if hasattr(p, "sync_live_inbox"):
-            gmail_provider = p
-            break
-
-    if not gmail_provider:
-        from backend.app.services.email_ingestion.gmail import GmailProvider
-        gmail_provider = GmailProvider("Gmail Gateway")
-        gmail_provider.on_new_message_callback = email_monitor.handle_incoming_raw_message
-
+async def sync_gmail_inbox_now(req: SyncRequest = SyncRequest()):
+    """
+    Incrementally synchronizes Gmail messages using the History API,
+    converts to byte-accurate RFC822, and ingests directly into the 11-stage Forensic DAG.
+    """
     try:
-        count = await gmail_provider.sync_live_inbox()
-        return {
-            "status": "success",
-            "messages_ingested": count,
-            "message": f"Successfully ingested {count} emails from Gmail into TRACEGUARD pipeline"
-        }
+        result = await gmail_oauth_manager.sync_inbox_incremental(limit=req.limit)
+        return result
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e)
+        )
+    except ConnectionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS if "rate limit" in str(e).lower() else status.HTTP_502_BAD_GATEWAY,
+            detail=str(e)
+        )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Gmail sync failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gmail incremental sync failed: {str(e)}"
+        )
+
+
+@router.get("/message/{message_id}")
+async def get_single_message_analysis(message_id: str):
+    """On-demand scan / lookup for a specific Gmail message ID (Phase 12)."""
+    try:
+        return await gmail_oauth_manager.get_or_scan_single_message(message_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to analyze Gmail message {message_id}: {str(e)}")
+
+
+@router.post("/disconnect")
+async def disconnect_google_account():
+    """Revokes token with Google and cleans up stored encrypted credentials (Phase 6)."""
+    return gmail_oauth_manager.revoke_and_disconnect()
