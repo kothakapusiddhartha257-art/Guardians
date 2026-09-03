@@ -40,19 +40,17 @@ class GmailImapService:
         self.is_connected: bool = False
 
     def is_configured(self) -> bool:
-        load_dotenv(override=True)
-        pwd = os.getenv("GMAIL_APP_PASSWORD", settings.GMAIL_APP_PASSWORD).strip()
-        return bool(pwd and pwd not in ("PASTE_APP_PASSWORD_HERE", "abcdefghijklmnop", ""))
+        pwd = (settings.GMAIL_APP_PASSWORD or "").strip()
+        return bool(pwd and pwd != "PASTE_APP_PASSWORD_HERE")
 
     def _sync_connect_and_login(self) -> imaplib.IMAP4_SSL:
         """Internal synchronous helper to establish SSL IMAP connection."""
-        load_dotenv(override=True)
-        user = os.getenv("GMAIL_EMAIL", settings.GMAIL_EMAIL).strip()
-        pwd = os.getenv("GMAIL_APP_PASSWORD", settings.GMAIL_APP_PASSWORD).strip().replace(" ", "")
-
-        if not pwd or pwd in ("PASTE_APP_PASSWORD_HERE", "abcdefghijklmnop"):
+        if not self.is_configured():
             self.is_connected = False
-            raise ValueError("Invalid Google App Password. Please generate a real 16-character App Password at myaccount.google.com/apppasswords and paste it in .env.")
+            raise ValueError("Gmail App Password not configured in backend .env file.")
+
+        user = (settings.GMAIL_EMAIL or "kingkmn786@gmail.com").strip()
+        pwd = (settings.GMAIL_APP_PASSWORD or "").strip().replace(" ", "")
 
         try:
             client = imaplib.IMAP4_SSL(settings.IMAP_HOST, settings.IMAP_PORT)
@@ -65,7 +63,11 @@ class GmailImapService:
             err_str = str(e)
             logger.error(f"[Gmail IMAP] Authentication failed for {user}: {e}")
             if "AUTHENTICATIONFAILED" in err_str or "Invalid credentials" in err_str:
-                raise PermissionError("Google rejected the password. Please verify that 2-Step Verification is ON and generate an App Password at https://myaccount.google.com/apppasswords.")
+                raise PermissionError(
+                    "Google rejected the credentials (AUTHENTICATIONFAILED). "
+                    "Note: Gmail requires a 16-character Google App Password from https://myaccount.google.com/apppasswords "
+                    "(requires 2-Step Verification ON). Placeholder text like 'abcdefghijklmnop' is not accepted by Google."
+                )
             raise PermissionError(f"Unable to authenticate with Gmail: {err_str}")
         except Exception as e:
             self.is_connected = False

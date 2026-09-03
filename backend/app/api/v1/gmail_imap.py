@@ -1,3 +1,4 @@
+import os
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
@@ -21,6 +22,17 @@ class AutoScanRequest(BaseModel):
 @router.get("/status")
 async def get_gmail_status():
     """Returns the configuration and connectivity status of the dedicated Gmail IMAP mailbox."""
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        try:
+            from dotenv import dotenv_values
+            env_vals = dotenv_values(".env")
+            if env_vals.get("GMAIL_APP_PASSWORD"):
+                settings.GMAIL_APP_PASSWORD = env_vals["GMAIL_APP_PASSWORD"]
+            if env_vals.get("GMAIL_EMAIL"):
+                settings.GMAIL_EMAIL = env_vals["GMAIL_EMAIL"]
+        except Exception:
+            pass
+
     is_conf = gmail_imap_service.is_configured()
     return {
         "email": settings.GMAIL_EMAIL,
@@ -39,6 +51,17 @@ async def get_gmail_status():
 @router.post("/test-connection")
 async def test_gmail_connection():
     """Tests the live IMAP SSL/TLS connection to Gmail with configured credentials."""
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        try:
+            from dotenv import dotenv_values
+            env_vals = dotenv_values(".env")
+            if env_vals.get("GMAIL_APP_PASSWORD"):
+                settings.GMAIL_APP_PASSWORD = env_vals["GMAIL_APP_PASSWORD"]
+            if env_vals.get("GMAIL_EMAIL"):
+                settings.GMAIL_EMAIL = env_vals["GMAIL_EMAIL"]
+        except Exception:
+            pass
+
     result = await gmail_imap_service.test_connection()
     if not result.get("success"):
         raise HTTPException(
