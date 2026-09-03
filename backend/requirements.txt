@@ -1,0 +1,16 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+mail-parser==4.0.0
+dnspython==2.6.1
+checkdmarc==5.6.2
+rapidfuzz==3.9.7
+pytest==8.3.3
+httpx==0.27.2
+python-multipart==0.0.9
+# Optional local GeoLite2/GeoIP2 lookup. Configure GEOIP_DB_PATH after install.
+geoip2>=4.8,<5
+python-dotenv>=1.0,<2
+google-api-python-client>=2.140,<3
+google-auth-httplib2>=0.2,<1
+google-auth-oauthlib>=1.2,<2
