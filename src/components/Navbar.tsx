@@ -1,8 +1,13 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Shield, Radio, LayoutDashboard, Search, FolderGit2, Network, UploadCloud, Cpu } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Shield, Radio, LayoutDashboard, Search, FolderGit2, Network,
+  UploadCloud, Cpu, ChevronDown, RefreshCw, LogOut, Check, Plus, Server, Sparkles
+} from 'lucide-react';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { useAuth } from '../context/AuthContext';
+import { ImapConnectModal } from './ImapConnectModal';
 
 interface NavbarProps {
   onOpenUpload: () => void;
@@ -10,7 +15,7 @@ interface NavbarProps {
 
 const NAV_ITEMS = [
   { path: '/monitoring', label: 'Live Gateway', icon: Radio, pulse: true },
-  { path: '/', label: 'SOC Dashboard', icon: LayoutDashboard },
+  { path: '/dashboard', label: 'SOC Dashboard', icon: LayoutDashboard },
   { path: '/investigation', label: 'Investigation', icon: Search },
   { path: '/cases', label: 'Case Management', icon: FolderGit2 },
   { path: '/campaigns', label: 'Campaign Clusters', icon: Network },
@@ -18,10 +23,57 @@ const NAV_ITEMS = [
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenUpload }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, activeMailbox, connectedMailboxes, logout, selectMailbox, disconnectMailbox, loginWithGoogle } = useAuth();
+
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isImapModalOpen, setIsImapModalOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/';
+    if (path === '/monitoring') return location.pathname === '/monitoring';
     return location.pathname.startsWith(path);
+  };
+
+  const handleSyncNow = async () => {
+    setIsSyncing(true);
+    try {
+      if (activeMailbox?.provider === 'gmail') {
+        await fetch('/api/v1/oauth/gmail/sync-now', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limit: 20 })
+        });
+      } else {
+        await fetch('/api/v1/gmail/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ max_emails: 20 })
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSyncing(false);
+      setIsAccountMenuOpen(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
   return (
@@ -29,13 +81,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenUpload }) => {
       <div className="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between gap-6">
         
         {/* Brand Identity */}
-        <Link to="/" className="flex items-center gap-3.5 group flex-shrink-0">
+        <Link to="/monitoring" className="flex items-center gap-3.5 group flex-shrink-0">
           <div className="size-9 rounded-xl bg-gradient-to-br from-primary via-primaryDark to-surfaceElevated flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:scale-105 transition-all">
             <Shield className="size-5" />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base tracking-tight text-primaryText">
+              <span className="font-extrabold text-base tracking-tight text-primaryText font-mono">
                 TRACEGUARD
               </span>
               <span className="eyebrow text-[10px] text-primary px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20">
@@ -43,12 +95,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenUpload }) => {
               </span>
             </div>
             <span className="text-[11px] text-mutedText font-mono tracking-tight hidden sm:block">
-              Digital Evidence & Threat Reconstruction
+              Digital Evidence &amp; Threat Reconstruction
             </span>
           </div>
         </Link>
 
-        {/* Center Navigation Links with Animated Active Indicator */}
+        {/* Center Navigation Links */}
         <nav className="hidden lg:flex items-center gap-1 p-1 rounded-2xl bg-surfaceSubtle/60 border border-border/50">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.path);
@@ -82,16 +134,123 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenUpload }) => {
           })}
         </nav>
 
-        {/* Right Action Tools */}
+        {/* Right Action Tools & Connected Account Menu */}
         <div className="flex items-center gap-3">
-          {/* Active DAG status */}
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surfaceSubtle border border-border/60">
-            <Cpu className="size-3.5 text-infra animate-pulse" />
-            <span className="eyebrow text-[10px] text-secondaryText">DAG Engine Active</span>
-          </div>
-
+          
           {/* Theme Switcher */}
           <ThemeSwitcher />
+
+          {/* CONNECTED ACCOUNT MENU (MASTER PLAN PHASES 9 & 10) */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-surfaceSubtle hover:bg-surfaceElevated border border-border text-xs font-medium transition-all"
+            >
+              <span className="size-2 rounded-full bg-threatSafe animate-pulse"></span>
+              <div className="flex flex-col text-left">
+                <span className="font-bold text-[11px] text-primaryText font-mono">
+                  {activeMailbox?.provider === 'gmail' && 'Gmail Connected'}
+                  {activeMailbox?.provider === 'microsoft' && 'Microsoft 365'}
+                  {activeMailbox?.provider === 'imap' && 'IMAP Connected'}
+                  {activeMailbox?.provider === 'demo' && 'Demo Environment'}
+                  {!activeMailbox && 'Connected Account'}
+                </span>
+                <span className="text-[10px] text-mutedText truncate max-w-[120px]">
+                  {activeMailbox?.email || user?.email || 'analyst@traceguard.sec'}
+                </span>
+              </div>
+              <ChevronDown className="size-3 text-mutedText" />
+            </button>
+
+            {/* Dropdown Menu */}
+            <AnimatePresence>
+              {isAccountMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2 w-72 rounded-2xl bg-surface border border-border shadow-2xl p-4 z-50 space-y-4"
+                >
+                  <div className="pb-3 border-b border-border/80">
+                    <div className="eyebrow text-[9px] text-mutedText uppercase mb-1">Active Account</div>
+                    <div className="font-bold text-sm text-primaryText truncate">
+                      {activeMailbox?.email || user?.email || 'SecOps Lead'}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-threatSafe/15 text-threatSafe border border-threatSafe/30">
+                        <span className="size-1.5 rounded-full bg-threatSafe"></span>
+                        CONNECTED
+                      </span>
+                      <span className="text-[10px] font-mono text-mutedText">
+                        {activeMailbox?.provider?.toUpperCase() || 'GOOGLE'}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-mutedText font-mono mt-1.5">
+                      Last sync: {activeMailbox?.last_synced_at ? new Date(activeMailbox.last_synced_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '11:42 AM'}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-1">
+                    <button
+                      onClick={handleSyncNow}
+                      disabled={isSyncing}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-secondaryText hover:text-primaryText hover:bg-surfaceSubtle transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <RefreshCw className={`size-3.5 ${isSyncing ? 'animate-spin text-primary' : ''}`} />
+                        <span>Sync Mailbox Now</span>
+                      </span>
+                      <span className="text-[10px] font-mono text-mutedText">Delta</span>
+                    </button>
+
+                    <button
+                      onClick={() => { setIsAccountMenuOpen(false); setIsImapModalOpen(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-secondaryText hover:text-primaryText hover:bg-surfaceSubtle transition-colors"
+                    >
+                      <Plus className="size-3.5 text-primary" />
+                      <span>Connect Another Mailbox</span>
+                    </button>
+                  </div>
+
+                  {/* Connected Mailboxes List */}
+                  {connectedMailboxes.length > 1 && (
+                    <div className="pt-2 border-t border-border/80">
+                      <div className="eyebrow text-[9px] text-mutedText uppercase mb-2">Switch Mailbox</div>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {connectedMailboxes.map((mb) => (
+                          <div
+                            key={mb.id}
+                            onClick={() => selectMailbox(mb.id)}
+                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                              mb.id === activeMailbox?.id
+                                ? 'bg-primary/10 text-primary font-bold border border-primary/20'
+                                : 'text-secondaryText hover:bg-surfaceSubtle'
+                            }`}
+                          >
+                            <span className="truncate max-w-[180px]">{mb.email}</span>
+                            {mb.id === activeMailbox?.id && <Check className="size-3" />}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Disconnect / Logout */}
+                  <div className="pt-2 border-t border-border/80">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-threatCritical hover:bg-threatCritical/10 transition-colors"
+                    >
+                      <LogOut className="size-3.5" />
+                      <span>Disconnect &amp; Logout</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Upload EML Ingestion CTA */}
           <button
@@ -123,6 +282,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenUpload }) => {
           );
         })}
       </div>
+
+      <ImapConnectModal
+        isOpen={isImapModalOpen}
+        onClose={() => setIsImapModalOpen(false)}
+        onSuccess={() => setIsAccountMenuOpen(false)}
+      />
     </header>
   );
 };
