@@ -37,6 +37,7 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+backend/.env
 
 # IDE & OS
 .vscode/
@@ -61,7 +62,7 @@ pnpm-debug.log*
 *.sqlite
 *.sqlite3
 scratch/
-backend/data/evidence/
-backend/data/oauth_credentials/credentials.json
-backend/data/oauth_credentials/token.json
+backend/data/
+*.zip
+MT!/
 

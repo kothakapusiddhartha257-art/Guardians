@@ -1,0 +1,10 @@
+From: Service Team <service@example.org>
+To: user@example.net
+Subject: Your account update
+Date: Mon, 01 Jan 2024 10:01:00 +0000
+Message-ID: <notice@example.org>
+Return-Path: <service@example.org>
+Authentication-Results: mx.example.net; spf=pass; dkim=pass; dmarc=pass
+Received: from mail.example.org (mail.example.org [8.8.8.8]) by mx.example.net; Mon, 01 Jan 2024 10:00:00 +0000
+
+Hello.

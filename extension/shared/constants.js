@@ -16,8 +16,11 @@ export const ENDPOINTS = {
   oauthAuthUrl: `${BACKEND_BASE}/oauth/gmail/auth-url`,
   ingestEml: `${BACKEND_BASE}/emails/ingest`,
   ingestEmlAlias: `${BACKEND_BASE}/ingest/eml`,
+  dashboardSummary: `${BACKEND_BASE}/dashboard/summary`,
+  dashboardRecent: `${BACKEND_BASE}/dashboard/recent`,
   investigationRoute: (id) => `${WEB_APP_BASE}/investigation?id=${id}`,
   monitoringRoute: `${WEB_APP_BASE}/monitoring`,
+  dashboardRoute: `${WEB_APP_BASE}`,
 };
 
 export const DEFAULT_SCAN_COUNT = 20;
