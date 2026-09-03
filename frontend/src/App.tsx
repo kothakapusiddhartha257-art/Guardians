@@ -5,11 +5,10 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { UploadModal } from './components/UploadModal';
 import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
+import { ThreatOverview } from './pages/ThreatOverview';
 import { EmailMonitoring } from './pages/EmailMonitoring';
 import { Investigation } from './pages/Investigation';
-import { Cases } from './pages/Cases';
-import { Campaigns } from './pages/Campaigns';
+import { ExtensionSetup } from './pages/ExtensionSetup';
 
 // Protected Route Guard
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -60,7 +59,7 @@ function MainLayout() {
             path="/monitoring"
             element={
               <ProtectedRoute>
-                <EmailMonitoring />
+                <EmailMonitoring onOpenUpload={() => setIsUploadOpen(true)} />
               </ProtectedRoute>
             }
           />
@@ -68,7 +67,7 @@ function MainLayout() {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <Dashboard onOpenUpload={() => setIsUploadOpen(true)} />
+                <ThreatOverview onOpenUpload={() => setIsUploadOpen(true)} />
               </ProtectedRoute>
             }
           />
@@ -96,22 +95,7 @@ function MainLayout() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/cases"
-            element={
-              <ProtectedRoute>
-                <Cases />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/campaigns"
-            element={
-              <ProtectedRoute>
-                <Campaigns />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/extension" element={<ProtectedRoute><ExtensionSetup /></ProtectedRoute>} />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />

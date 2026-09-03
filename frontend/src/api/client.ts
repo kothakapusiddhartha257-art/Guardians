@@ -107,6 +107,7 @@ export const api = {
   // ---- Emails / Investigation ----
   getEmailInvestigation: (emailId: string) => fetchApi<any>(`/emails/${emailId}`),
   getEmailSubgraph: (emailId: string) => fetchApi<any>(`/emails/${emailId}/graph`),
+  getInvestigationHistory: () => fetchApi<any[]>('/investigations?limit=20'),
 
   uploadEmail: async (file?: File, rawContent?: string, caseId?: string) => {
     const formData = new FormData();

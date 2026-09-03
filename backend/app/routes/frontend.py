@@ -10,6 +10,7 @@ from email.utils import parseaddr
 from hashlib import sha256
 import json
 from pathlib import Path
+import sqlite3
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -22,12 +23,63 @@ router = APIRouter(prefix="/api/v1", tags=["frontend"])
 _investigations: dict[str, dict] = {}
 INVESTIGATION_DIR = Path(__file__).resolve().parents[2] / "data" / "investigations"
 INVESTIGATION_DIR.mkdir(parents=True, exist_ok=True)
+HISTORY_DB = INVESTIGATION_DIR.parent / "traceguard_history.db"
+
+
+def _history_connection() -> sqlite3.Connection:
+    """Open the small local index used by the Investigation History screen."""
+    connection = sqlite3.connect(HISTORY_DB)
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS investigations (
+            email_id TEXT PRIMARY KEY,
+            report_id TEXT,
+            subject TEXT,
+            from_address TEXT,
+            date TEXT,
+            threat_score REAL NOT NULL,
+            classification TEXT NOT NULL,
+            analyzed_at REAL NOT NULL
+        )
+    """)
+    return connection
+
+
+def _history_row(email_id: str, bundle: dict, analyzed_at: float | None = None) -> tuple:
+    headers = bundle.get("email", {}).get("headers_normalized", {})
+    return (
+        email_id,
+        bundle.get("report_id"),
+        headers.get("subject") or "No subject",
+        headers.get("from_address", {}).get("address") or "Unknown sender",
+        headers.get("date"),
+        bundle.get("risk_score", {}).get("threat_score", 0),
+        bundle.get("risk_score", {}).get("classification", "SAFE"),
+        analyzed_at if analyzed_at is not None else datetime.now(timezone.utc).timestamp(),
+    )
+
+
+def _index_investigation(email_id: str, bundle: dict, analyzed_at: float | None = None) -> None:
+    try:
+        with _history_connection() as connection:
+            connection.execute(
+                "INSERT OR REPLACE INTO investigations VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                _history_row(email_id, bundle, analyzed_at),
+            )
+            connection.execute("""
+                DELETE FROM investigations WHERE email_id NOT IN (
+                    SELECT email_id FROM investigations ORDER BY analyzed_at DESC LIMIT 20
+                )
+            """)
+    except sqlite3.Error:
+        # The JSON report remains the durable fallback if a local database is locked.
+        pass
 
 
 def store_investigation(email_id: str, bundle: dict) -> None:
     """Persist local reports so browser links survive an API reload/restart."""
     _investigations[email_id] = bundle
     (INVESTIGATION_DIR / f"{email_id}.json").write_text(json.dumps(bundle, ensure_ascii=False), encoding="utf-8")
+    _index_investigation(email_id, bundle)
 
 
 def load_investigation(email_id: str) -> dict | None:
@@ -43,6 +95,27 @@ def load_investigation(email_id: str) -> dict | None:
         return bundle
     except (OSError, json.JSONDecodeError):
         return None
+
+
+def recent_investigations(limit: int = 20) -> list[dict]:
+    """Return the latest persistent reports without loading raw email bodies."""
+    # Migrate reports from before the local SQLite index was introduced.
+    for path in INVESTIGATION_DIR.glob("*.json"):
+        try:
+            bundle = json.loads(path.read_text(encoding="utf-8"))
+            _index_investigation(bundle.get("email", {}).get("email_id") or path.stem, bundle, path.stat().st_mtime)
+        except (OSError, json.JSONDecodeError):
+            continue
+    try:
+        with _history_connection() as connection:
+            rows = connection.execute("""
+                SELECT email_id, report_id, subject, from_address, date, threat_score, classification, analyzed_at
+                FROM investigations ORDER BY analyzed_at DESC LIMIT ?
+            """, (limit,)).fetchall()
+        fields = ("email_id", "report_id", "subject", "from_address", "date", "threat_score", "classification", "analyzed_at")
+        return [dict(zip(fields, row)) for row in rows]
+    except sqlite3.Error:
+        return []
 
 
 async def _read_input(file: UploadFile | None, raw_content: str | None) -> bytes:
@@ -142,6 +215,11 @@ async def get_email(email_id: str) -> dict:
     return bundle
 
 
+@router.get("/investigations")
+async def get_investigation_history(limit: int = 20) -> list[dict]:
+    return recent_investigations(max(1, min(limit, 20)))
+
+
 @router.get("/emails/{email_id}/graph")
 async def get_email_graph(email_id: str) -> dict:
     if not load_investigation(email_id):
@@ -171,13 +249,21 @@ async def get_live_emails() -> list:
 
 @router.get("/dashboard/summary")
 async def dashboard_summary() -> dict:
-    return {"active_threats_count": 0, "quarantined_count": 0, "critical_count": 0,
-            "suspicious_count": 0, "safe_count": 0, "average_threat_score": 0,
-            "total_analyzed": len(_investigations), "frontiers_breached": 0}
+    reports = recent_investigations(20)
+    return {"active_threats_count": sum(item["classification"] != "SAFE" for item in reports), "quarantined_count": 0,
+            "critical_count": sum(item["classification"] == "CRITICAL" for item in reports),
+            "suspicious_count": sum(item["classification"] == "SUSPICIOUS" for item in reports),
+            "safe_count": sum(item["classification"] == "SAFE" for item in reports),
+            "average_threat_score": round(sum(item["threat_score"] for item in reports) / len(reports), 2) if reports else 0,
+            "total_analyzed": len(reports), "frontiers_breached": 0}
+
+
+@router.get("/dashboard/recent")
+async def dashboard_recent() -> list:
+    return recent_investigations(20)
 
 
 @router.get("/dashboard/trend")
-@router.get("/dashboard/recent")
 @router.get("/cases")
 @router.get("/campaigns")
 async def empty_collection() -> list:

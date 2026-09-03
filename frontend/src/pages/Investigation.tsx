@@ -27,6 +27,7 @@ export const Investigation: React.FC = () => {
 
   const [bundle, setBundle] = useState<any>(null);
   const [subgraph, setSubgraph] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,13 +55,11 @@ export const Investigation: React.FC = () => {
 
   useEffect(() => {
     if (!emailId) {
-      api.getRecentThreats().then((threats) => {
-        if (threats && threats.length > 0) {
-          navigate(`/investigation?id=${threats[0].email_id}`, { replace: true });
-        } else {
-          setLoading(false);
-        }
-      }).catch(() => setLoading(false));
+      setLoading(true);
+      api.getInvestigationHistory()
+        .then((items) => setHistory(items || []))
+        .catch((err: any) => setError(err.message || 'Could not load investigation history.'))
+        .finally(() => setLoading(false));
       return;
     }
 
@@ -88,6 +87,51 @@ export const Investigation: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-4">
         <div className="size-10 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
         <p className="eyebrow text-secondaryText">Assembling Multi-Module Forensic Intelligence Dossier...</p>
+      </div>
+    );
+  }
+
+  if (!emailId) {
+    return (
+      <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-6 animate-in fade-in duration-300">
+        <div className="rounded-3xl border border-border bg-surface shadow-xl p-7 sm:p-9 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+          <div>
+            <span className="eyebrow text-primary">Saved on this computer</span>
+            <h1 className="text-3xl font-black text-primaryText mt-1">Investigation History</h1>
+            <p className="text-sm text-secondaryText mt-2">Your latest 20 completed email investigations. Select one to see its evidence.</p>
+          </div>
+          <button onClick={() => navigate('/monitoring')} className="px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold whitespace-nowrap">
+            Scan Gmail
+          </button>
+        </div>
+        {error ? (
+          <div className="p-8 text-center rounded-3xl border border-threatHigh/30 bg-threatHigh/10 text-secondaryText">{error}</div>
+        ) : history.length === 0 ? (
+          <div className="p-12 text-center rounded-3xl border border-border bg-surface space-y-3">
+            <ShieldCheck className="size-11 text-threatSafe mx-auto" />
+            <h2 className="text-xl font-bold text-primaryText">No investigations yet</h2>
+            <p className="text-sm text-secondaryText">Scan Gmail or upload an email. Your completed reports will appear here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {history.map((item) => {
+              const score = Math.round((item.threat_score || 0) * 100);
+              const risky = item.classification !== 'SAFE';
+              return (
+                <button key={item.email_id} onClick={() => navigate(`/report/${item.email_id}`)} className="text-left p-5 rounded-2xl border border-border bg-surface hover:border-primary/50 hover:shadow-lg transition-all space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold border ${risky ? 'bg-threatHigh/10 border-threatHigh/30 text-threatHigh' : 'bg-threatSafe/10 border-threatSafe/30 text-threatSafe'}`}>
+                      {item.classification} · {score}%
+                    </span>
+                    <span className="text-xs text-mutedText">Open report →</span>
+                  </div>
+                  <h2 className="font-bold text-primaryText truncate">{item.subject || 'No subject'}</h2>
+                  <p className="text-sm font-mono text-secondaryText truncate">From: {item.from_address || 'Unknown sender'}</p>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
@@ -609,18 +653,34 @@ export const Investigation: React.FC = () => {
       {/* TAB 8: URLS & REDIRECTS */}
       {activeTab === 'urls' && (
         <div className="p-6 rounded-3xl border border-border bg-surface shadow-xl space-y-6 animate-in fade-in duration-300">
-          <span className="eyebrow">Extracted URLs & Redirect Sandboxing</span>
+          <div className="space-y-1">
+            <span className="eyebrow">Passive URL Safety Analysis</span>
+            <p className="text-xs text-mutedText">Links are analysed without being opened or executed.</p>
+          </div>
           <div className="space-y-4 font-mono text-xs">
             {urls.map((u: any, idx: number) => (
-              <div key={idx} className="p-4 rounded-2xl bg-surfaceSubtle border border-threatCritical/30 space-y-2">
+              <div key={idx} className={`p-4 rounded-2xl bg-surfaceSubtle border space-y-3 ${u.risk_reasons?.length ? 'border-threatCritical/30' : 'border-threatSafe/30'}`}>
                 <div className="flex justify-between">
-                  <span className="text-threatCritical font-bold">⚠️ Anchor Text Mismatch</span>
-                  <span className="eyebrow text-[9px] text-threatCritical">IP-Literal URL</span>
+                  <span className={`font-bold ${u.risk_reasons?.length ? 'text-threatCritical' : 'text-threatSafe'}`}>
+                    {u.risk_reasons?.length ? '⚠️ SUSPICIOUS LINK - DO NOT OPEN' : '✓ NO LOCAL RISK SIGNAL FOUND'}
+                  </span>
+                  <span className={`eyebrow text-[9px] ${u.risk_reasons?.length ? 'text-threatCritical' : 'text-threatSafe'}`}>
+                    {u.risk_score !== undefined ? `RISK ${u.risk_score}%` : u.risk_reasons?.length ? 'REVIEW REQUIRED' : 'PASSIVE CHECK'}
+                  </span>
                 </div>
                 <div className="text-secondaryText">Displayed: <span className="text-primaryText">{u.anchor_text || u.url}</span></div>
-                <div className="text-threatCritical">Actual Destination: <span className="underline">{u.url}</span></div>
+                <div className={u.risk_reasons?.length ? 'text-threatCritical break-all' : 'text-secondaryText break-all'}>Destination (not opened): <span>{u.url}</span></div>
+                {u.risk_reasons?.length > 0 && (
+                  <div className="rounded-xl bg-threatCritical/10 border border-threatCritical/20 px-3 py-2 text-threatCritical">
+                    <span className="font-bold">Why it was flagged: </span>{u.risk_reasons.join(' · ')}
+                  </div>
+                )}
+                {u.reputation?.length > 0 && (
+                  <div className="text-secondaryText">Reputation checks: {u.reputation.map((item: any) => `${item.provider}: ${item.verdict}`).join(' · ')}</div>
+                )}
               </div>
             ))}
+            {urls.length === 0 && <div className="text-mutedText">No URLs were found in this email.</div>}
           </div>
         </div>
       )}

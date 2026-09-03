@@ -4,12 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Radio, ShieldAlert, ShieldCheck, AlertOctagon, Mail, Zap, Sliders,
   RefreshCw, ChevronRight, CheckCircle2, AlertTriangle, ArrowUpRight,
-  Shield, ExternalLink, Filter, ArrowRight, CornerDownRight, Check, Loader2
+  Shield, ExternalLink, Filter, ArrowRight, CornerDownRight, Check, Loader2, UploadCloud
 } from 'lucide-react';
 import { MailboxConnectModal } from '../components/MailboxConnectModal';
 import { ThresholdConfigPanel } from '../components/ThresholdConfigPanel';
 
-export const EmailMonitoring: React.FC = () => {
+interface EmailMonitoringProps {
+  onOpenUpload: () => void;
+}
+
+export const EmailMonitoring: React.FC<EmailMonitoringProps> = ({ onOpenUpload }) => {
   const navigate = useNavigate();
 
   const [mailboxes, setMailboxes] = useState<any[]>([]);
@@ -46,6 +50,7 @@ export const EmailMonitoring: React.FC = () => {
   const [gmailResults, setGmailResults] = useState<any[]>([]);
   const [gmailSummary, setGmailSummary] = useState<any>(null);
   const [gmailError, setGmailError] = useState<string | null>(null);
+  const SCAN_JOB_KEY = 'traceguard_gmail_scan_job';
 
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -83,6 +88,9 @@ export const EmailMonitoring: React.FC = () => {
 
   useEffect(() => {
     loadData();
+
+    const savedJob = sessionStorage.getItem(SCAN_JOB_KEY);
+    if (savedJob) pollScanJob(savedJob);
 
     // Check URL search params for OAuth success callback
     const searchParams = new URLSearchParams(window.location.search);
@@ -124,6 +132,28 @@ export const EmailMonitoring: React.FC = () => {
       ws.close();
     };
   }, []);
+
+  const finishScan = async (data: any) => {
+    const results = data.result?.results || data.results || [];
+    setGmailResults(results);
+    setGmailSummary({ total: results.length, high_risk: results.filter((item: any) => (item.threat_score || 0) >= 0.7).length,
+      suspicious: results.filter((item: any) => (item.threat_score || 0) >= 0.3 && (item.threat_score || 0) < 0.7).length,
+      clean: results.filter((item: any) => (item.threat_score || 0) < 0.3).length });
+    // Keep the completed job ID so returning to this page restores the same
+    // result list instead of making the completed scan disappear.
+    setIsScanningGmail(false); await loadData();
+  };
+
+  const pollScanJob = async (jobId: string) => {
+    setIsScanningGmail(true);
+    try {
+      const data = await fetch(`/api/v1/oauth/gmail/scan-status/${jobId}`).then((r) => r.json());
+      if (data.status === 'completed') return finishScan(data);
+      if (data.status === 'failed') throw new Error(data.error || 'Scan failed.');
+      setScanProgress({ current: data.current || 0, total: data.total || 20, subject: data.subject || 'Scanning...', stepIndex: 0 });
+      window.setTimeout(() => pollScanJob(jobId), 900);
+    } catch (e: any) { sessionStorage.removeItem(SCAN_JOB_KEY); setIsScanningGmail(false); setGmailError(e.message || 'Scan failed.'); }
+  };
 
   const handleSimulateInbound = async (scenario: string) => {
     setIsSimulating(true);
@@ -183,41 +213,16 @@ export const EmailMonitoring: React.FC = () => {
       stepIndex: 0
     });
 
-    // Dynamic stage progression animation while server performs multi-lens forensic DAG
-    const progressInterval = setInterval(() => {
-      setScanProgress((prev) => {
-        const nextStep = (prev.stepIndex + 1) % 5;
-        const nextCurrent = Math.min(prev.total, prev.current + (nextStep === 0 ? 1 : 0));
-        return {
-          ...prev,
-          stepIndex: nextStep,
-          current: nextCurrent > 0 ? nextCurrent : 1
-        };
-      });
-    }, 1200);
-
     try {
-      const res = await fetch(`/api/v1/oauth/gmail/sync-now?limit=${Math.min(limit, 25)}`, { method: 'POST' });
+      const res = await fetch(`/api/v1/oauth/gmail/scan-start?limit=${Math.min(limit, 25)}`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.detail || 'Gmail scan failed.');
       }
-      clearInterval(progressInterval);
-      const results = data.results || [];
-      setGmailResults(results);
-      setGmailSummary({ total: results.length,
-        high_risk: results.filter((item: any) => (item.threat_score || 0) >= 0.7).length,
-        suspicious: results.filter((item: any) => (item.threat_score || 0) >= 0.3 && (item.threat_score || 0) < 0.7).length,
-        clean: results.filter((item: any) => (item.threat_score || 0) < 0.3).length });
-      setGmailStatus((prev: any) => ({ ...prev, connected: true, configured: true }));
-      setToastMessage(`Scan complete: ${results.length} recent Gmail emails analyzed.`);
-      setTimeout(() => setToastMessage(null), 5000);
-      await loadData();
+      sessionStorage.setItem(SCAN_JOB_KEY, data.job_id);
+      pollScanJob(data.job_id);
     } catch (e: any) {
-      clearInterval(progressInterval);
       setGmailError(e.message || 'Scan failed.');
-    } finally {
-      setIsScanningGmail(false);
     }
   };
 
@@ -342,7 +347,7 @@ export const EmailMonitoring: React.FC = () => {
             <span className="text-mutedText font-light">under watch.</span>
           </h1>
           <p className="max-w-xl text-sm sm:text-base text-secondaryText leading-relaxed">
-            TRACEGUARD continuously intercepts inbound mail streams, reconstructs sending infrastructure, and autonomously enforces policy decisions before threats reach human users.
+            Scan your connected Gmail account, or analyse a separate email file without connecting its mailbox.
           </p>
         </div>
 
@@ -358,9 +363,18 @@ export const EmailMonitoring: React.FC = () => {
             </span>
           </div>
 
-          <p className="max-w-xs text-right text-xs leading-relaxed text-mutedText">
-            Your connected Gmail account is scanned below. Choose a scan size, then open any email for its full threat report.
-          </p>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <p className="max-w-xs text-right text-xs leading-relaxed text-mutedText">
+              Your connected Gmail account is scanned below. Choose a scan size, then open any email for its full threat report.
+            </p>
+            <button
+              onClick={onOpenUpload}
+              className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary/30 bg-primary/5 text-primary hover:bg-primary hover:text-white text-xs font-bold transition-colors"
+            >
+              <UploadCloud className="size-4" />
+              Analyse Separate Email
+            </button>
+          </div>
         </div>
       </section>
 

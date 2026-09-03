@@ -10,6 +10,7 @@ import base64
 import json
 import logging
 import os
+import threading
 from pathlib import Path
 from uuid import uuid4
 
@@ -35,6 +36,8 @@ REDIRECT_URI = "http://127.0.0.1:8000/api/v1/oauth/gmail/callback"
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/userinfo.email"]
 _states: set[str] = set()
 _pending_flows: dict[str, Flow] = {}
+_scan_jobs: dict[str, dict] = {}
+_scan_lock = threading.Lock()
 
 
 def _client_file() -> Path:
@@ -131,12 +134,11 @@ def callback(code: str | None = Query(None), state: str | None = Query(None), er
         return RedirectResponse(f"http://127.0.0.1:5173/login?oauth_error={type(exc).__name__}")
 
 
-@router.post("/sync-now")
-def sync_now(limit: int = Query(10, ge=1, le=25)) -> dict:
+def _sync_messages(limit: int, job: dict | None = None) -> dict:
     service = build("gmail", "v1", credentials=_credentials(), cache_discovery=False)
     message_refs = service.users().messages().list(userId="me", maxResults=limit).execute().get("messages", [])
     results = []
-    for item in message_refs:
+    for index, item in enumerate(message_refs, start=1):
         gmail_id = item["id"]
         message = service.users().messages().get(userId="me", id=gmail_id, format="raw").execute()
         raw = base64.urlsafe_b64decode(message["raw"] + "===")
@@ -149,4 +151,44 @@ def sync_now(limit: int = Query(10, ge=1, le=25)) -> dict:
                         "from_address": bundle["email"]["headers_normalized"]["from_address"].get("address"),
                         "threat_score": bundle["risk_score"]["threat_score"],
                         "classification": bundle["risk_score"]["classification"]})
+        if job is not None:
+            job.update({"current": index, "total": len(message_refs), "subject": results[-1]["subject"] or "Email analyzed"})
     return {"status": "success", "mode": "read-only", "messages_scanned": len(results), "results": results}
+
+
+def _run_scan_job(job_id: str, limit: int) -> None:
+    job = _scan_jobs[job_id]
+    try:
+        job["status"] = "running"
+        job["result"] = _sync_messages(limit, job)
+        job["status"] = "completed"
+    except Exception as exc:
+        logger.exception("Background Gmail scan failed")
+        job.update({"status": "failed", "error": str(exc)})
+
+
+@router.post("/scan-start")
+def scan_start(limit: int = Query(10, ge=1, le=25)) -> dict:
+    """Start a scan that continues when the browser changes pages."""
+    with _scan_lock:
+        running = next((job_id for job_id, job in _scan_jobs.items() if job.get("status") in {"queued", "running"}), None)
+        if running:
+            return {"job_id": running, "status": _scan_jobs[running]["status"], "reused": True}
+        job_id = uuid4().hex
+        _scan_jobs[job_id] = {"status": "queued", "current": 0, "total": limit, "subject": "Preparing Gmail scan..."}
+        threading.Thread(target=_run_scan_job, args=(job_id, limit), daemon=True).start()
+        return {"job_id": job_id, "status": "queued", "reused": False}
+
+
+@router.get("/scan-status/{job_id}")
+def scan_status(job_id: str) -> dict:
+    job = _scan_jobs.get(job_id)
+    if not job:
+        raise HTTPException(404, "Scan job was not found. Start a new scan.")
+    return {"job_id": job_id, **job}
+
+
+@router.post("/sync-now")
+def sync_now(limit: int = Query(10, ge=1, le=25)) -> dict:
+    """Compatibility endpoint for direct/manual API use."""
+    return _sync_messages(limit)

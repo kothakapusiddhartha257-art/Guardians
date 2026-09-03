@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield, Radio, LayoutDashboard, Search, FolderGit2,
+  Shield, Radio, LayoutDashboard, Search, Puzzle,
   UploadCloud, Cpu, ChevronDown, RefreshCw, LogOut, Check, Plus, Server, Sparkles
 } from 'lucide-react';
 import { ThemeSwitcher } from './ThemeSwitcher';
@@ -15,9 +15,9 @@ interface NavbarProps {
 
 const NAV_ITEMS = [
   { path: '/monitoring', label: 'Live Gateway', icon: Radio, pulse: true },
-  { path: '/dashboard', label: 'SOC Dashboard', icon: LayoutDashboard },
-  { path: '/investigation', label: 'Investigation', icon: Search },
-  { path: '/cases', label: 'Case Management', icon: FolderGit2 },
+  { path: '/dashboard', label: 'Threat Overview', icon: LayoutDashboard },
+  { path: '/investigation', label: 'Investigation History', icon: Search },
+  { path: '/extension', label: 'Add Extension', icon: Puzzle },
 ];
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenUpload }) => {
@@ -28,7 +28,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenUpload }) => {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isImapModalOpen, setIsImapModalOpen] = useState(false);
+  const [scanStatus, setScanStatus] = useState<any>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let timeout: number | undefined;
+    const refreshScanStatus = async () => {
+      const jobId = sessionStorage.getItem('traceguard_gmail_scan_job');
+      if (!jobId) return setScanStatus(null);
+      try {
+        const response = await fetch(`/api/v1/oauth/gmail/scan-status/${jobId}`);
+        if (!response.ok) return setScanStatus(null);
+        const job = await response.json();
+        setScanStatus(job);
+        if (job.status === 'queued' || job.status === 'running') timeout = window.setTimeout(refreshScanStatus, 900);
+      } catch { setScanStatus(null); }
+    };
+    refreshScanStatus();
+    return () => { if (timeout) window.clearTimeout(timeout); };
+  }, [location.pathname]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -135,6 +153,20 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenUpload }) => {
 
         {/* Right Action Tools & Connected Account Menu */}
         <div className="flex shrink-0 items-center gap-3">
+          {scanStatus && (
+            <button
+              onClick={() => navigate('/monitoring')}
+              className={`hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold border transition-colors ${
+                scanStatus.status === 'completed'
+                  ? 'bg-threatSafe/10 text-threatSafe border-threatSafe/30'
+                  : 'bg-primary/10 text-primary border-primary/30'
+              }`}
+              title="Open Gmail scan results"
+            >
+              <RefreshCw className={`size-3.5 ${scanStatus.status === 'running' || scanStatus.status === 'queued' ? 'animate-spin' : ''}`} />
+              <span>{scanStatus.status === 'completed' ? 'Scan ready' : `Scanning ${scanStatus.current || 0}/${scanStatus.total || 0}`}</span>
+            </button>
+          )}
           
           {/* Theme Switcher */}
           <ThemeSwitcher />

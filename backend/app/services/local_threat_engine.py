@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 from app.header_analysis.received_chain import parse_received_chain
 from app.services.network_intelligence import inspect_sender_network
+from app.services.url_intelligence import inspect_url
 
 SUSPICIOUS_TLDS = {"xyz", "top", "click", "link", "info", "tk", "ml", "ga", "cf", "gq", "zip", "mov"}
 DANGEROUS_EXTENSIONS = {"exe", "scr", "bat", "cmd", "com", "pif", "vbs", "vbe", "js", "jse", "wsf", "wsh", "ps1", "msi", "dll", "hta", "lnk", "jar", "iso", "img"}
@@ -90,20 +91,15 @@ def analyze_local_threats(raw: bytes) -> dict:
             break
 
     for url in dict.fromkeys(URL_RE.findall(body)):
-        parsed = urlparse(url)
-        host = parsed.hostname or ""
-        reasons: list[str] = []
-        try:
-            ip_address(host)
-            reasons.append("URL uses a raw IP address instead of a domain")
-        except ValueError:
-            if host.rsplit(".", 1)[-1].lower() in SUSPICIOUS_TLDS:
-                reasons.append("URL uses a frequently abused top-level domain")
-        if parsed.scheme == "http" and any(word in host.lower() for word in ("bank", "login", "account", "secure")):
-            reasons.append("Sensitive-looking destination uses unencrypted HTTP")
-        if reasons:
-            signals.append(_signal("suspicious_url", "high", 15, "; ".join(reasons), "T1566.002"))
-        urls.append({"url": url, "anchor_text": url, "risk_reasons": reasons})
+        url_result = inspect_url(url)
+        reasons = url_result["risk_reasons"]
+        if url_result["risk_score"] >= 25:
+            severity = "critical" if url_result["risk_score"] >= 70 else "high"
+            signals.append(_signal("suspicious_url", severity, min(30, max(12, url_result["risk_score"] // 3)),
+                                   "; ".join(reasons), "T1566.002"))
+        urls.append({"url": url, "anchor_text": url, "risk_reasons": reasons,
+                     "risk_score": url_result["risk_score"], "host": url_result["host"],
+                     "reputation": url_result["reputation"], "checked_without_visiting": True})
 
     urgency = bool(re.search(r"\b(urgent|immediately|action required|within \d+ hours?|only \d+ hours?|valid for \d+ hours?|suspend|final notice)\b", text))
     authority = bool(re.search(r"\b(ceo|cfo|director|executive|it support|security team|helpdesk)\b", text))
