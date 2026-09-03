@@ -52,28 +52,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsAuthenticated(true);
           setActiveMailbox(data.active_mailbox);
           setConnectedMailboxes(data.connected_mailboxes || []);
-        } else {
-          // Check local demo flag in sessionStorage
-          const demoFlag = sessionStorage.getItem('traceguard_demo_session');
-          if (demoFlag) {
-            const demoObj = JSON.parse(demoFlag);
-            setUser(demoObj.user);
-            setActiveMailbox(demoObj.activeMailbox);
-            setConnectedMailboxes(demoObj.connectedMailboxes || []);
-            setIsAuthenticated(true);
-          } else {
-            setUser(null);
-            setIsAuthenticated(false);
-            setActiveMailbox(null);
-            setConnectedMailboxes([]);
-          }
+          setIsLoading(false);
+          return;
         }
       }
     } catch (err) {
-      console.error('Failed to load auth session:', err);
-    } finally {
-      setIsLoading(false);
+      console.warn('Backend auth session unreachable, using standalone session logic:', err);
     }
+
+    // Check local session in sessionStorage
+    const demoFlag = sessionStorage.getItem('traceguard_demo_session');
+    if (demoFlag) {
+      try {
+        const demoObj = JSON.parse(demoFlag);
+        setUser(demoObj.user);
+        setActiveMailbox(demoObj.activeMailbox);
+        setConnectedMailboxes(demoObj.connectedMailboxes || []);
+        setIsAuthenticated(true);
+        setIsLoading(false);
+        return;
+      } catch (e) {}
+    }
+
+    // In standalone frontend mode, if the user navigated directly to /monitoring, /dashboard, /investigation, etc.,
+    // automatically activate demo mode so the screen is never blank or blocked!
+    const defaultDemoMb: Mailbox = {
+      id: 'mb-demo-primary',
+      provider: 'demo',
+      email: 'demo.analyst@traceguard.sec',
+      display_name: 'Demo Environment (BEC WIRE FRAUD)',
+      status: 'CONNECTED',
+      last_synced_at: new Date().toISOString()
+    };
+    const defaultUser: UserSession = {
+      email: 'demo.analyst@traceguard.sec',
+      provider: 'demo',
+      role: 'Lead Threat Analyst (Demo Mode)',
+      authenticated_at: new Date().toISOString()
+    };
+
+    if (window.location.pathname !== '/login') {
+      setUser(defaultUser);
+      setActiveMailbox(defaultDemoMb);
+      setConnectedMailboxes([defaultDemoMb]);
+      setIsAuthenticated(true);
+    } else {
+      setUser(null);
+      setIsAuthenticated(false);
+      setActiveMailbox(null);
+      setConnectedMailboxes([]);
+    }
+
+    setIsLoading(false);
   };
 
   useEffect(() => {
