@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phishing Shield</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-group">
+        <div class="logo-icon">🛡️</div>
+        <div>
+          <h1 class="app-title">Phishing Shield</h1>
+          <p class="app-subtitle">Email & Threat Scanner</p>
+        </div>
+      </div>
+      <div class="version-tag">v1.0</div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="tab-active">📧 Webmail Scan</button>
+      <button class="tab-btn" data-tab="tab-manual">✍️ Manual Check</button>
+      <button class="tab-btn" data-tab="tab-url">🔗 URL Check</button>
+    </nav>
+
+    <!-- Tab 1: Active Webmail Scan -->
+    <section id="tab-active" class="tab-content active">
+      <div class="card active-card">
+        <div class="card-icon">⚡</div>
+        <div class="card-text">
+          <h3>Scan Active Webmail</h3>
+          <p>Instantly extracts and analyzes the open email on Gmail or Outlook Web.</p>
+        </div>
+        <button id="btn-scan-active" class="btn btn-primary">
+          <span class="btn-text">Scan Open Email</span>
+        </button>
+      </div>
+
+      <div id="active-meta" class="email-meta-preview hidden">
+        <div class="meta-row">
+          <span class="meta-label">Client:</span>
+          <span id="meta-client" class="meta-value">-</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Sender:</span>
+          <span id="meta-sender" class="meta-value text-truncate">-</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Subject:</span>
+          <span id="meta-subject" class="meta-value text-truncate">-</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 2: Manual Scan -->
+    <section id="tab-manual" class="tab-content">
+      <div class="form-group">
+        <label for="manual-sender">Sender Email / Address:</label>
+        <input type="text" id="manual-sender" class="form-input" placeholder="e.g. support@service.com or PayPal <alert@xyz.com>">
+      </div>
+      <div class="form-group">
+        <label for="manual-subject">Subject Line:</label>
+        <input type="text" id="manual-subject" class="form-input" placeholder="e.g. URGENT: Verify your account">
+      </div>
+      <div class="form-group">
+        <label for="manual-body">Email Body / Content:</label>
+        <textarea id="manual-body" class="form-textarea" rows="4" placeholder="Paste email body text or message here..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button id="btn-manual-scan" class="btn btn-primary flex-1">Analyze Email</button>
+        <button id="btn-manual-sample" class="btn btn-secondary" title="Load a suspicious phishing email example">Load Sample</button>
+      </div>
+    </section>
+
+    <!-- Tab 3: URL Check -->
+    <section id="tab-url" class="tab-content">
+      <div class="form-group">
+        <label for="url-input">Target Link / URL:</label>
+        <input type="url" id="url-input" class="form-input" placeholder="https://bit.ly/login-verify or https://example.com">
+      </div>
+      <button id="btn-url-scan" class="btn btn-primary w-full">Inspect URL Safety</button>
+    </section>
+
+    <!-- Results Section -->
+    <section id="results-container" class="results-section hidden">
+      <div class="score-card">
+        <div class="score-dial">
+          <svg viewBox="0 0 100 100" class="dial-svg">
+            <circle class="dial-bg" cx="50" cy="50" r="42"></circle>
+            <circle id="dial-fill" class="dial-fill" cx="50" cy="50" r="42"></circle>
+          </svg>
+          <div class="dial-content">
+            <span id="score-number" class="score-value">0%</span>
+            <span class="score-label">RISK</span>
+          </div>
+        </div>
+
+        <div class="verdict-group">
+          <div id="verdict-badge" class="verdict-badge safe">SAFE</div>
+          <p id="verdict-summary" class="verdict-text">No phishing indicators found.</p>
+        </div>
+      </div>
+
+      <!-- Threat Indicators Breakdown -->
+      <div class="threats-wrapper">
+        <div class="section-title-row">
+          <h4 class="section-title">Threat Indicators (<span id="threat-count">0</span>)</h4>
+          <span id="threat-url-count" class="badge-mini">0 URLs checked</span>
+        </div>
+        <div id="threat-list" class="threat-list">
+          <!-- Dynamically filled by JS -->
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="../scripts/detector.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

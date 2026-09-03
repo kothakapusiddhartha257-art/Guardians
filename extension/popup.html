@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="obsidian">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRACEGUARD AI — Email Intelligence</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-wrapper">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-shield">🛡️</div>
+        <div>
+          <div class="brand-name">
+            <span>TRACEGUARD</span>
+            <span class="brand-badge">AI</span>
+          </div>
+          <span class="brand-eyebrow">Forensic Gateway v2.0</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <select id="themeSelect" class="theme-selector" title="Switch Theme">
+          <option value="obsidian" selected>Obsidian</option>
+          <option value="forensic-paper">Forensic Paper</option>
+          <option value="deep-space">Deep Space</option>
+          <option value="midnight-violet">Midnight Violet</option>
+        </select>
+        <div class="status-indicator" id="statusIndicator">
+          <span class="status-pulse"></span>
+          <span class="status-text" id="statusText">Ready</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VIEW 1: DISCONNECTED / CONNECT GMAIL                        -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="viewDisconnected" class="view-panel">
+      <div class="connect-card">
+        <div class="connect-icon">⚡</div>
+        <h2 class="connect-title">Connect Gmail Account</h2>
+        <p class="connect-desc">
+          Authorize TRACEGUARD to inspect inbound email messages and run deep cryptographic authentication, SMTP relay tracing, and AI threat scoring.
+        </p>
+
+        <button id="btnConnectGmail" class="btn-primary-action w-full">
+          <span>Authorize with Google OAuth</span>
+          <span class="arrow-icon">&rarr;</span>
+        </button>
+
+        <div class="security-notice">
+          <span class="shield-mini">🔒</span>
+          <span>Read-only access (<code class="font-mono">gmail.readonly</code>). No emails are ever modified or sent.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VIEW 2: CONNECTED DASHBOARD & ACTIONS                       -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="viewConnected" class="view-panel hidden">
+      <!-- User Info Bar -->
+      <div class="user-bar">
+        <div class="user-meta">
+          <span class="user-dot"></span>
+          <span id="userEmailLabel" class="user-email truncate">user@gmail.com</span>
+        </div>
+        <button id="btnDisconnect" class="btn-disconnect" title="Disconnect Account">Disconnect</button>
+      </div>
+
+      <!-- Quick Action Cards -->
+      <div class="action-grid">
+        <!-- Action 1: Scan Inbox -->
+        <div class="action-card">
+          <div class="action-card-header">
+            <span class="action-tag-mini">INBOX SCAN</span>
+            <span class="action-icon">📥</span>
+          </div>
+          <h3 class="action-card-title">Scan Mailbox Messages</h3>
+          <p class="action-card-desc">Batch ingest recent inbound messages through the TRACEGUARD forensic DAG.</p>
+          
+          <div class="scan-controls-row">
+            <select id="scanQuerySelect" class="dropdown-small">
+              <option value="in:inbox" selected>Inbox (All)</option>
+              <option value="is:unread">Unread Only</option>
+              <option value="newer_than:7d">Last 7 Days</option>
+              <option value="has:attachment">With Attachments</option>
+            </select>
+
+            <select id="scanCountSelect" class="dropdown-small w-20">
+              <option value="10">10 msgs</option>
+              <option value="20" selected>20 msgs</option>
+              <option value="50">50 msgs</option>
+            </select>
+          </div>
+
+          <button id="btnStartInboxScan" class="btn-primary-action w-full mt-2">
+            <span>Run Forensic Inbox Scan</span>
+            <span class="arrow-icon">⚡</span>
+          </button>
+        </div>
+
+        <!-- Action 2: Scan Open Tab -->
+        <div class="action-card">
+          <div class="action-card-header">
+            <span class="action-tag-mini">ACTIVE EMAIL</span>
+            <span class="action-icon">📧</span>
+          </div>
+          <h3 class="action-card-title">Inspect Open Email</h3>
+          <p class="action-card-desc">Analyze the currently open webmail message in your active browser tab.</p>
+          <button id="btnScanCurrentEmail" class="btn-secondary-action w-full mt-2">
+            <span>Scan Open Webmail Tab</span>
+            <span class="arrow-icon">&rarr;</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Recent Scans Section -->
+      <div class="recent-scans-box">
+        <div class="recent-header">
+          <span class="eyebrow-text">Recent Forensic Scans</span>
+          <span id="recentCountBadge" class="count-badge">0</span>
+        </div>
+        <div id="recentScansList" class="recent-list">
+          <div class="empty-state">No recent scans. Click "Run Forensic Inbox Scan" to begin.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VIEW 3: ACTIVE SCANNING PROGRESS STREAM                     -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="viewScanning" class="view-panel hidden">
+      <div class="scanning-card">
+        <div class="scanning-header">
+          <div class="scanning-spinner"></div>
+          <div>
+            <span class="eyebrow-text">Forensic DAG Pipeline Active</span>
+            <h3 id="scanProgressCount" class="progress-title">Analyzing 1 of 20 Messages...</h3>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-track">
+          <div id="progressBar" class="progress-fill" style="width: 5%;"></div>
+        </div>
+
+        <!-- Currently Active Message -->
+        <div class="active-item-box">
+          <span class="meta-label">Current Subject:</span>
+          <p id="activeScanSubject" class="active-subject truncate">Connecting to Gmail API...</p>
+          <span id="activeScanStage" class="active-stage font-mono">Preserving RFC822 MIME bytes</span>
+        </div>
+
+        <!-- Real DAG Stages Checklist -->
+        <div class="stages-checklist">
+          <div class="stage-step done"><span class="step-icon">✓</span> Evidence Preservation (.EML Base64)</div>
+          <div class="stage-step done"><span class="step-icon">✓</span> MIME Structure & Header Normalization</div>
+          <div class="stage-step active"><span class="step-icon">●</span> Cryptographic Auth (SPF/DKIM/DMARC/ARC)</div>
+          <div class="stage-step active"><span class="step-icon">●</span> Reverse SMTP Relay Traversal</div>
+          <div class="stage-step active"><span class="step-icon">●</span> ML Intent & Homoglyph Spoof Detection</div>
+          <div class="stage-step pending"><span class="step-icon">○</span> Cross-Case Campaign Correlation</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VIEW 4: SINGLE EMAIL VERDICT & INVESTIGATION DOSSIER        -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="viewResults" class="view-panel hidden">
+      <button id="btnBackToDashboard" class="btn-back">&larr; Back to Scans</button>
+
+      <!-- 1. EMAIL VERDICT HERO -->
+      <section class="verdict-hero" id="verdictHero">
+        <div class="verdict-top-bar">
+          <span class="verdict-tag" id="verdictTag">MALICIOUS</span>
+          <span class="action-tag" id="actionTag">QUARANTINED</span>
+        </div>
+
+        <div class="verdict-center">
+          <div class="verdict-score-group">
+            <span class="score-number" id="scoreNumber">94%</span>
+            <span class="score-label">THREAT SCORE</span>
+          </div>
+          <div class="verdict-meta">
+            <h2 class="email-subject-text" id="emailSubject">
+              URGENT: Vendor Payment Account Change & Wire Transfer Directive
+            </h2>
+            <p class="email-sender-text" id="emailSender">
+              finance@secure-exchange-transfer.xyz
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. WHY IT WAS FLAGGED (Top 3 Signals) -->
+      <section class="section-box">
+        <div class="section-header">
+          <span class="eyebrow-text">Why It Was Flagged</span>
+          <span class="section-badge">Key Signals</span>
+        </div>
+        <div class="signals-list" id="signalsList">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- 3. SENDER IDENTITY COMPARISON -->
+      <section class="section-box" id="senderIdentityBox">
+        <div class="section-header">
+          <span class="eyebrow-text">Sender Identity Comparison</span>
+        </div>
+        <div class="identity-comparison">
+          <div class="id-col">
+            <span class="id-label">Claimed Sender</span>
+            <span class="id-val" id="claimedDomain">acme.com</span>
+          </div>
+          <div class="id-arrow">&darr;</div>
+          <div class="id-col">
+            <span class="id-label">Actual Return Path</span>
+            <span class="id-val mismatch" id="actualDomain">secure-exchange-transfer.xyz</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. 3-AXIS INTELLIGENCE -->
+      <section class="section-box">
+        <div class="section-header">
+          <span class="eyebrow-text">3-Axis Calibrated Scoring</span>
+          <span class="section-badge">Late Fusion</span>
+        </div>
+        <div class="axis-bars">
+          <div class="axis-row">
+            <div class="axis-meta">
+              <span>Threat Severity</span>
+              <strong id="axisThreatVal" class="text-threat">94%</strong>
+            </div>
+            <div class="track"><div id="axisThreatBar" class="fill fill-threat" style="width: 94%;"></div></div>
+          </div>
+          <div class="axis-row">
+            <div class="axis-meta">
+              <span>Infrastructure Trust</span>
+              <strong id="axisInfraVal" class="text-infra">83%</strong>
+            </div>
+            <div class="track"><div id="axisInfraBar" class="fill fill-infra" style="width: 83%;"></div></div>
+          </div>
+          <div class="axis-row">
+            <div class="axis-meta">
+              <span>Attribution Confidence</span>
+              <strong id="axisAttrVal" class="text-attrib">40%</strong>
+            </div>
+            <div class="track"><div id="axisAttrBar" class="fill fill-attrib" style="width: 40%;"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. AUTHENTICATION PROTOCOLS -->
+      <section class="section-box">
+        <div class="section-header">
+          <span class="eyebrow-text">Authentication Protocols</span>
+        </div>
+        <div class="auth-grid">
+          <div class="auth-card" id="authSpf">
+            <span class="auth-name">SPF</span>
+            <span class="auth-status fail" id="authSpfVal">FAIL</span>
+          </div>
+          <div class="auth-card" id="authDkim">
+            <span class="auth-name">DKIM</span>
+            <span class="auth-status fail" id="authDkimVal">FAIL</span>
+          </div>
+          <div class="auth-card" id="authDmarc">
+            <span class="auth-name">DMARC</span>
+            <span class="auth-status fail" id="authDmarcVal">FAIL</span>
+          </div>
+          <div class="auth-card" id="authArc">
+            <span class="auth-name">ARC</span>
+            <span class="auth-status pass" id="authArcVal">PASS</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. FULL INVESTIGATION DEEP LINK -->
+      <div class="footer-actions">
+        <button id="btnOpenFullInvestigation" class="btn-full-investigation">
+          <span>OPEN FORENSIC INVESTIGATION</span>
+          <span class="arrow-icon">&rarr;</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VIEW 5: BATCH SCAN SUMMARY                                  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="viewBatchSummary" class="view-panel hidden">
+      <div class="batch-header">
+        <div>
+          <span class="eyebrow-text">Batch Scan Completed</span>
+          <h2 class="batch-title">Inbox Forensic Report</h2>
+        </div>
+        <button id="btnBatchDone" class="btn-secondary-action">Done</button>
+      </div>
+
+      <!-- Batch Metric Counters -->
+      <div class="batch-metrics-row">
+        <div class="metric-pill critical">
+          <span class="m-val" id="batchCriticalCount">0</span>
+          <span class="m-lbl">Critical</span>
+        </div>
+        <div class="metric-pill suspicious">
+          <span class="m-val" id="batchSuspiciousCount">0</span>
+          <span class="m-lbl">Suspicious</span>
+        </div>
+        <div class="metric-pill safe">
+          <span class="m-val" id="batchSafeCount">0</span>
+          <span class="m-lbl">Clean</span>
+        </div>
+      </div>
+
+      <!-- Batch Item List -->
+      <div id="batchResultsList" class="batch-list">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- Error Banner / Notification -->
+    <div id="errorToast" class="error-toast hidden">
+      <span id="errorMessage">An unexpected error occurred.</span>
+      <button id="btnDismissError" class="toast-close">&times;</button>
+    </div>
+  </div>
+
+  <script src="detector.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

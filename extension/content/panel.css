@@ -1,0 +1,148 @@
+/* TRACEGUARD AI - In-Email Shadow DOM Styles */
+
+:host {
+  display: block;
+  width: 100%;
+  margin-bottom: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #F5F1EA;
+  box-sizing: border-box;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.tg-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #080B12;
+  color: #F5F1EA;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  gap: 12px;
+}
+
+.tg-banner.critical {
+  border-color: rgba(255, 92, 92, 0.6);
+  background: #150B12;
+}
+
+.tg-banner.suspicious {
+  border-color: rgba(246, 196, 83, 0.6);
+  background: #141108;
+}
+
+.tg-banner.safe {
+  border-color: rgba(61, 220, 151, 0.5);
+  background: #08140F;
+}
+
+.tg-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tg-shield {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.tg-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tg-brand {
+  font-weight: 900;
+  font-size: 12px;
+  color: #FFFFFF;
+}
+
+.tg-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 92, 92, 0.2);
+  color: #FF5C5C;
+  border: 1px solid rgba(255, 92, 92, 0.4);
+}
+
+.tg-tag.suspicious {
+  background: rgba(246, 196, 83, 0.2);
+  color: #F6C453;
+  border-color: rgba(246, 196, 83, 0.4);
+}
+
+.tg-tag.safe {
+  background: rgba(61, 220, 151, 0.2);
+  color: #3DDC97;
+  border-color: rgba(61, 220, 151, 0.4);
+}
+
+.tg-signals {
+  font-size: 11px;
+  color: #94A3B8;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tg-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tg-btn {
+  background: #182234;
+  color: #F5F1EA;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.tg-btn:hover {
+  background: #202C40;
+  border-color: #4F8CFF;
+}
+
+.tg-btn-primary {
+  background: #4F8CFF;
+  color: #FFFFFF;
+  border: none;
+}
+
+.tg-btn-primary:hover {
+  background: #3B72DB;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #94A3B8;
+  border-top-color: #4F8CFF;
+  border-radius: 50%;
+  animation: tg-spin 800ms linear infinite;
+}
+
+@keyframes tg-spin {
+  to { transform: rotate(360deg); }
+}
