@@ -48,7 +48,20 @@ class Settings(BaseSettings):
         "docu-sign", "docusign", "dropbox", "irs", "incometax", "gov", "sbi", "hdfc", "icici"
     ]
 
-    class Config:
-        case_sensitive = True
+    # Gmail IMAP Ingestion Settings (Backend-only, never exposed to clients)
+    GMAIL_EMAIL: str = os.getenv("GMAIL_EMAIL", "kingkmn786@gmail.com")
+    GMAIL_APP_PASSWORD: str = os.getenv("GMAIL_APP_PASSWORD", "")
+    IMAP_HOST: str = os.getenv("IMAP_HOST", "imap.gmail.com")
+    IMAP_PORT: int = int(os.getenv("IMAP_PORT", "993"))
+    IMAP_FOLDER: str = os.getenv("IMAP_FOLDER", "INBOX")
+    GMAIL_AUTO_SCAN: bool = os.getenv("GMAIL_AUTO_SCAN", "False").lower() in ("true", "1", "yes")
+    GMAIL_AUTO_SCAN_INTERVAL_MINUTES: int = int(os.getenv("GMAIL_AUTO_SCAN_INTERVAL_MINUTES", "5"))
+
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+        "case_sensitive": False
+    }
 
 settings = Settings()

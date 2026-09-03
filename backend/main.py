@@ -13,6 +13,7 @@ from backend.app.api.v1.auth import router as auth_router
 from backend.app.api.v1.mailboxes import router as mailboxes_router
 from backend.app.api.v1.live_feed import router as live_feed_router
 from backend.app.api.v1.oauth import router as oauth_router
+from backend.app.api.v1.gmail_imap import router as gmail_imap_router
 from backend.app.services.email_monitor import email_monitor
 
 
@@ -45,6 +46,8 @@ app.add_middleware(
 app.include_router(live_feed_router, prefix=settings.API_V1_STR)
 app.include_router(mailboxes_router, prefix=settings.API_V1_STR)
 app.include_router(oauth_router, prefix=settings.API_V1_STR)
+app.include_router(gmail_imap_router, prefix=settings.API_V1_STR)
+app.include_router(gmail_imap_router, prefix="/api")
 app.include_router(emails_router, prefix=settings.API_V1_STR)
 app.include_router(cases_router, prefix=settings.API_V1_STR)
 app.include_router(dashboard_router, prefix=settings.API_V1_STR)
