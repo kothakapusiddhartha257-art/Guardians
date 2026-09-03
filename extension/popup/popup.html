@@ -3,332 +3,565 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TRACEGUARD AI — Email Intelligence</title>
+  <title>TRACEGUARD AI — Email Security</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="popup-wrapper">
-    <!-- Top Header -->
-    <header class="app-header">
-      <div class="brand-group">
-        <div class="brand-shield">🛡️</div>
-        <div>
-          <div class="brand-name">
-            <span>TRACEGUARD</span>
-            <span class="brand-badge">AI</span>
+  <div class="tg-app">
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- 1. PRODUCT HEADER                                           -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <header class="tg-header">
+      <div class="tg-header-left">
+        <div class="tg-logo-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="tg-brand-text">
+          <div class="tg-brand-row">
+            <span class="tg-brand-title">TRACEGUARD</span>
+            <span class="tg-brand-pill">AI</span>
           </div>
-          <span class="brand-eyebrow">Forensic Gateway v2.0</span>
+          <div class="tg-status-pill" id="globalStatusPill">
+            <span class="tg-status-dot"></span>
+            <span class="tg-status-label" id="globalStatusLabel">Protection Active</span>
+          </div>
         </div>
       </div>
 
-      <div class="header-right">
-        <select id="themeSelect" class="theme-selector" title="Switch Theme">
-          <option value="obsidian" selected>Obsidian</option>
-          <option value="forensic-paper">Forensic Paper</option>
-          <option value="deep-space">Deep Space</option>
-          <option value="midnight-violet">Midnight Violet</option>
-        </select>
-        <div class="status-indicator" id="statusIndicator">
-          <span class="status-pulse"></span>
-          <span class="status-text" id="statusText">Ready</span>
-        </div>
+      <div class="tg-header-actions">
+        <button id="btnHeaderConsole" class="tg-btn-ghost-sm" title="Open Main Website Console">
+          <span>Console</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </button>
+
+        <button id="btnThemeToggle" class="tg-btn-icon-sm" title="Toggle Theme">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2"/>
+            <path d="M12 20v2"/>
+            <path d="m4.93 4.93 1.41 1.41"/>
+            <path d="m17.66 17.66 1.41 1.41"/>
+            <path d="M2 12h2"/>
+            <path d="M20 12h2"/>
+            <path d="m6.34 17.66-1.41 1.41"/>
+            <path d="m19.07 4.93-1.41 1.41"/>
+          </svg>
+        </button>
       </div>
     </header>
 
     <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- VIEW 1: DISCONNECTED / CONNECT GMAIL                        -->
+    <!-- 2. SEGMENTED NAVIGATION TABS                                -->
     <!-- ═══════════════════════════════════════════════════════════ -->
-    <section id="viewDisconnected" class="view-panel">
-      <div class="connect-card">
-        <div class="connect-icon">⚡</div>
-        <h2 class="connect-title">Connect Gmail Account</h2>
-        <p class="connect-desc">
-          Authorize TRACEGUARD to inspect inbound email messages and run deep cryptographic authentication, SMTP relay tracing, and AI threat scoring.
-        </p>
-
-        <button id="btnConnectGmail" class="btn-primary-action w-full">
-          <span>Authorize with Google OAuth</span>
-          <span class="arrow-icon">&rarr;</span>
-        </button>
-
-        <div class="security-notice">
-          <span class="shield-mini">🔒</span>
-          <span>Read-only access (<code class="font-mono">gmail.readonly</code>). No emails are ever modified or sent.</span>
-        </div>
-      </div>
-    </section>
+    <nav class="tg-segmented-nav" id="tgSegmentedNav">
+      <button class="tg-seg-btn active" id="tabNavVerdict" data-target="viewVerdict">Verdict</button>
+      <button class="tg-seg-btn" id="tabNavScanner" data-target="viewScanner">Scanner</button>
+      <button class="tg-seg-btn" id="tabNavForensics" data-target="viewForensics">Forensics</button>
+      <button class="tg-seg-btn" id="tabNavMailbox" data-target="viewMailbox">Mailbox</button>
+    </nav>
 
     <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- VIEW 2: CONNECTED DASHBOARD & ACTIONS                       -->
+    <!-- 3. MAIN CONTENT PANELS                                      -->
     <!-- ═══════════════════════════════════════════════════════════ -->
-    <section id="viewConnected" class="view-panel hidden">
-      <!-- User Info Bar -->
-      <div class="user-bar">
-        <div class="user-meta">
-          <span class="user-dot"></span>
-          <span id="userEmailLabel" class="user-email truncate">user@gmail.com</span>
-        </div>
-        <button id="btnDisconnect" class="btn-disconnect" title="Disconnect Account">Disconnect</button>
-      </div>
+    <main class="tg-body">
 
-      <!-- Quick Action Cards -->
-      <div class="action-grid">
-        <!-- Action 1: Scan Inbox -->
-        <div class="action-card">
-          <div class="action-card-header">
-            <span class="action-tag-mini">INBOX SCAN</span>
-            <span class="action-icon">📥</span>
+      <!-- ───────────────────────────────────────────────────────── -->
+      <!-- VIEW: VERDICT / MAIN SECURITY ASSESSMENT                  -->
+      <!-- ───────────────────────────────────────────────────────── -->
+      <section id="viewVerdict" class="tg-view active">
+
+        <!-- When an email is analyzed, this card is shown -->
+        <div id="verdictContent" class="tg-verdict-wrapper">
+          <!-- Mini Email Overview Bar -->
+          <div class="tg-email-meta-strip">
+            <div class="tg-meta-row">
+              <span class="tg-meta-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><rect width="20" height="14" x="2" y="5" rx="2"/></svg>
+              </span>
+              <span class="tg-meta-subject truncate" id="vSubject">Loading email security assessment...</span>
+            </div>
+            <div class="tg-meta-sender-row">
+              <span class="tg-meta-from truncate" id="vSender">analyst@acme.com</span>
+              <span class="tg-meta-dot">•</span>
+              <span class="tg-meta-time" id="vTime">Just now</span>
+            </div>
           </div>
-          <h3 class="action-card-title">Scan Mailbox Messages</h3>
-          <p class="action-card-desc">Batch ingest recent inbound messages through the TRACEGUARD forensic DAG.</p>
+
+          <!-- Circular Security Score Focal Point -->
+          <div class="tg-score-card">
+            <span class="tg-score-eyebrow">EMAIL SECURITY SCORE</span>
+            
+            <div class="tg-radial-gauge-container">
+              <svg class="tg-radial-svg" width="124" height="124" viewBox="0 0 120 120">
+                <!-- Track circle -->
+                <circle class="tg-radial-track" cx="60" cy="60" r="48" />
+                <!-- Progress circle -->
+                <circle class="tg-radial-indicator" id="radialIndicator" cx="60" cy="60" r="48" />
+              </svg>
+              <div class="tg-radial-center">
+                <div class="tg-score-num" id="vScoreNum">--</div>
+                <div class="tg-score-max">/ 100</div>
+              </div>
+            </div>
+
+            <!-- Threat Level Label & Icon -->
+            <div class="tg-threat-badge" id="vThreatBadge">
+              <span class="tg-badge-icon" id="vThreatIcon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </span>
+              <span class="tg-badge-text" id="vThreatLabel">ANALYZING</span>
+            </div>
+            <p class="tg-threat-subdesc" id="vThreatSubdesc">Evaluating cryptographic signals and intent...</p>
+          </div>
+
+          <!-- Recommended Action Banner (Prominent) -->
+          <div class="tg-action-card" id="vActionCard">
+            <div class="tg-action-icon" id="vActionIcon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="tg-action-text">
+              <span class="tg-action-title">Recommended Action</span>
+              <p class="tg-action-desc" id="vActionDesc">Do not interact with this email. Quarantine or report to your security team.</p>
+            </div>
+          </div>
+
+          <!-- Threat Analysis Breakdown (Compact Rows) -->
+          <div class="tg-section-box">
+            <div class="tg-section-head">
+              <span class="tg-section-title">Threat Analysis</span>
+              <span class="tg-section-tag">6 Dimensions</span>
+            </div>
+            <div class="tg-breakdown-list">
+              <div class="tg-breakdown-row" id="rowSenderRep">
+                <span class="tg-row-lbl">Sender Reputation</span>
+                <span class="tg-pill-status" id="valSenderRep">Checking</span>
+              </div>
+              <div class="tg-breakdown-row" id="rowDomainRep">
+                <span class="tg-row-lbl">Domain Reputation</span>
+                <span class="tg-pill-status" id="valDomainRep">Checking</span>
+              </div>
+              <div class="tg-breakdown-row" id="rowAuth">
+                <span class="tg-row-lbl">Authentication (SPF/DKIM/DMARC)</span>
+                <span class="tg-pill-status" id="valAuth">Checking</span>
+              </div>
+              <div class="tg-breakdown-row" id="rowLinkSafety">
+                <span class="tg-row-lbl">Link Safety</span>
+                <span class="tg-pill-status" id="valLinkSafety">Checking</span>
+              </div>
+              <div class="tg-breakdown-row" id="rowAttachmentSafety">
+                <span class="tg-row-lbl">Attachment Safety</span>
+                <span class="tg-pill-status" id="valAttachmentSafety">Checking</span>
+              </div>
+              <div class="tg-breakdown-row" id="rowBehavior">
+                <span class="tg-row-lbl">Historical Behavior</span>
+                <span class="tg-pill-status" id="valBehavior">Checking</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Why this email received this score (Risk Explanation) -->
+          <div class="tg-section-box">
+            <div class="tg-section-head">
+              <span class="tg-section-title" id="reasonsCardTitle">Why this email is suspicious</span>
+              <span class="tg-section-tag" id="reasonsCountTag">Key Signals</span>
+            </div>
+            <ul class="tg-reasons-list" id="vReasonsList">
+              <li><span class="tg-bullet">•</span> Loading analysis reasons...</li>
+            </ul>
+          </div>
+
+          <!-- Footer Actions -->
+          <div class="tg-footer-actions">
+            <button id="btnSwitchToForensics" class="tg-btn-secondary w-full">
+              <span>View Full Technical Analysis</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <button id="btnLaunchConsoleFromVerdict" class="tg-btn-primary w-full">
+              <span>Open in Main SOC Console</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty State (Shown when no email is loaded) -->
+        <div id="verdictEmptyState" class="tg-empty-state hidden">
+          <div class="tg-empty-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <path d="m11 8 3 3-3 3"/>
+            </svg>
+          </div>
+          <h3 class="tg-empty-title">Select an email to begin analysis</h3>
+          <p class="tg-empty-desc">
+            TRACEGUARD AI will analyze the sender, authentication protocols, link safety, attachment heuristics, and infrastructure signals.
+          </p>
+          <div class="tg-empty-actions">
+            <button id="btnEmptyScanTab" class="tg-btn-primary w-full">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><rect width="20" height="14" x="2" y="5" rx="2"/></svg>
+              <span>Scan Active Webmail Tab</span>
+            </button>
+            <button id="btnEmptySwitchScanner" class="tg-btn-secondary w-full">
+              <span>Test Pre-Configured Attack Scenarios</span>
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ───────────────────────────────────────────────────────── -->
+      <!-- VIEW: SCANNER (Attack Vectors, Webmail Tab, Custom)       -->
+      <!-- ───────────────────────────────────────────────────────── -->
+      <section id="viewScanner" class="tg-view hidden">
+        
+        <!-- Action 1: Pre-configured Scenarios -->
+        <div class="tg-card">
+          <div class="tg-card-header">
+            <span class="tg-card-tag">THREAT SIMULATION</span>
+            <span class="tg-card-badge">Instant DAG</span>
+          </div>
+          <h4 class="tg-card-title">Test Attack Vectors</h4>
+          <p class="tg-card-desc">Execute the complete 11-stage forensic engine against realistic threat fixtures.</p>
+
+          <div class="tg-select-wrapper">
+            <select id="scenarioSelect" class="tg-select">
+              <option value="bec_wire_transfer" selected>⚡ BEC Wire Transfer Directive ($142.5K)</option>
+              <option value="m365_credential_harvest">🎣 Microsoft 365 Credential Harvester</option>
+              <option value="malware_invoice_exe">💣 Ransomware Invoice (.pdf.exe payload)</option>
+              <option value="clean_newsletter">🛡️ Legitimate Corporate Security Memo (Clean)</option>
+            </select>
+          </div>
+
+          <div id="scenarioDescBox" class="tg-desc-callout">
+            CEO executive spoof with Reply-To redirection, new intermediary account request, and display name impersonation.
+          </div>
+
+          <button id="btnRunScenarioScan" class="tg-btn-primary w-full mt-2">
+            <span>Execute Threat Assessment</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+        <!-- Action 2: Inspect Active Webmail Tab -->
+        <div class="tg-card mt-3">
+          <div class="tg-card-header">
+            <span class="tg-card-tag">BROWSER TAB</span>
+            <span class="tg-card-badge">Active</span>
+          </div>
+          <h4 class="tg-card-title">Inspect Open Email</h4>
+          <p class="tg-card-desc">Extracts and scores the email currently open in Gmail or Outlook webmail.</p>
+          <button id="btnScanCurrentEmail" class="tg-btn-secondary w-full mt-2">
+            <span>Scan Active Webmail Tab</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+        <!-- Action 3: Paste Custom EML / Headers -->
+        <div class="tg-card mt-3">
+          <details class="tg-details-card">
+            <summary class="tg-details-summary">
+              <span>Paste Custom Raw EML / Headers</span>
+              <svg class="tg-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="tg-details-body">
+              <textarea id="customRawText" class="tg-textarea" placeholder="Paste RFC 822 MIME stream or headers here..."></textarea>
+              <button id="btnScanCustomRaw" class="tg-btn-secondary w-full mt-2">
+                <span>Analyze Custom Raw Content</span>
+              </button>
+            </div>
+          </details>
+        </div>
+
+      </section>
+
+      <!-- ───────────────────────────────────────────────────────── -->
+      <!-- VIEW: FORENSICS (Progressive Disclosure)                  -->
+      <!-- ───────────────────────────────────────────────────────── -->
+      <section id="viewForensics" class="tg-view hidden">
+        
+        <!-- 3-Axis Intelligence Model Summary -->
+        <div class="tg-card">
+          <div class="tg-card-header">
+            <span class="tg-card-tag">MATHEMATICAL MODEL</span>
+            <span class="tg-card-badge">3-Axis Fusion</span>
+          </div>
           
-          <div class="scan-controls-row">
-            <select id="scanQuerySelect" class="dropdown-small">
-              <option value="in:inbox" selected>Inbox (All)</option>
-              <option value="is:unread">Unread Only</option>
-              <option value="newer_than:7d">Last 7 Days</option>
-              <option value="has:attachment">With Attachments</option>
-            </select>
-
-            <select id="scanCountSelect" class="dropdown-small w-20">
-              <option value="10">10 msgs</option>
-              <option value="20" selected>20 msgs</option>
-              <option value="50">50 msgs</option>
-            </select>
-          </div>
-
-          <button id="btnStartInboxScan" class="btn-primary-action w-full mt-2">
-            <span>Run Forensic Inbox Scan</span>
-            <span class="arrow-icon">⚡</span>
-          </button>
-        </div>
-
-        <!-- Action 2: Scan Open Tab -->
-        <div class="action-card">
-          <div class="action-card-header">
-            <span class="action-tag-mini">ACTIVE EMAIL</span>
-            <span class="action-icon">📧</span>
-          </div>
-          <h3 class="action-card-title">Inspect Open Email</h3>
-          <p class="action-card-desc">Analyze the currently open webmail message in your active browser tab.</p>
-          <button id="btnScanCurrentEmail" class="btn-secondary-action w-full mt-2">
-            <span>Scan Open Webmail Tab</span>
-            <span class="arrow-icon">&rarr;</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Recent Scans Section -->
-      <div class="recent-scans-box">
-        <div class="recent-header">
-          <span class="eyebrow-text">Recent Forensic Scans</span>
-          <span id="recentCountBadge" class="count-badge">0</span>
-        </div>
-        <div id="recentScansList" class="recent-list">
-          <div class="empty-state">No recent scans. Click "Run Forensic Inbox Scan" to begin.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- VIEW 3: ACTIVE SCANNING PROGRESS STREAM                     -->
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    <section id="viewScanning" class="view-panel hidden">
-      <div class="scanning-card">
-        <div class="scanning-header">
-          <div class="scanning-spinner"></div>
-          <div>
-            <span class="eyebrow-text">Forensic DAG Pipeline Active</span>
-            <h3 id="scanProgressCount" class="progress-title">Analyzing 1 of 20 Messages...</h3>
-          </div>
-        </div>
-
-        <!-- Progress Bar -->
-        <div class="progress-track">
-          <div id="progressBar" class="progress-fill" style="width: 5%;"></div>
-        </div>
-
-        <!-- Currently Active Message -->
-        <div class="active-item-box">
-          <span class="meta-label">Current Subject:</span>
-          <p id="activeScanSubject" class="active-subject truncate">Connecting to Gmail API...</p>
-          <span id="activeScanStage" class="active-stage font-mono">Preserving RFC822 MIME bytes</span>
-        </div>
-
-        <!-- Real DAG Stages Checklist -->
-        <div class="stages-checklist">
-          <div class="stage-step done"><span class="step-icon">✓</span> Evidence Preservation (.EML Base64)</div>
-          <div class="stage-step done"><span class="step-icon">✓</span> MIME Structure & Header Normalization</div>
-          <div class="stage-step active"><span class="step-icon">●</span> Cryptographic Auth (SPF/DKIM/DMARC/ARC)</div>
-          <div class="stage-step active"><span class="step-icon">●</span> Reverse SMTP Relay Traversal</div>
-          <div class="stage-step active"><span class="step-icon">●</span> ML Intent & Homoglyph Spoof Detection</div>
-          <div class="stage-step pending"><span class="step-icon">○</span> Cross-Case Campaign Correlation</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- VIEW 4: SINGLE EMAIL VERDICT & INVESTIGATION DOSSIER        -->
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    <section id="viewResults" class="view-panel hidden">
-      <button id="btnBackToDashboard" class="btn-back">&larr; Back to Scans</button>
-
-      <!-- 1. EMAIL VERDICT HERO -->
-      <section class="verdict-hero" id="verdictHero">
-        <div class="verdict-top-bar">
-          <span class="verdict-tag" id="verdictTag">MALICIOUS</span>
-          <span class="action-tag" id="actionTag">QUARANTINED</span>
-        </div>
-
-        <div class="verdict-center">
-          <div class="verdict-score-group">
-            <span class="score-number" id="scoreNumber">94%</span>
-            <span class="score-label">THREAT SCORE</span>
-          </div>
-          <div class="verdict-meta">
-            <h2 class="email-subject-text" id="emailSubject">
-              URGENT: Vendor Payment Account Change & Wire Transfer Directive
-            </h2>
-            <p class="email-sender-text" id="emailSender">
-              finance@secure-exchange-transfer.xyz
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- 2. WHY IT WAS FLAGGED (Top 3 Signals) -->
-      <section class="section-box">
-        <div class="section-header">
-          <span class="eyebrow-text">Why It Was Flagged</span>
-          <span class="section-badge">Key Signals</span>
-        </div>
-        <div class="signals-list" id="signalsList">
-          <!-- Populated by JS -->
-        </div>
-      </section>
-
-      <!-- 3. SENDER IDENTITY COMPARISON -->
-      <section class="section-box" id="senderIdentityBox">
-        <div class="section-header">
-          <span class="eyebrow-text">Sender Identity Comparison</span>
-        </div>
-        <div class="identity-comparison">
-          <div class="id-col">
-            <span class="id-label">Claimed Sender</span>
-            <span class="id-val" id="claimedDomain">acme.com</span>
-          </div>
-          <div class="id-arrow">&darr;</div>
-          <div class="id-col">
-            <span class="id-label">Actual Return Path</span>
-            <span class="id-val mismatch" id="actualDomain">secure-exchange-transfer.xyz</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- 4. 3-AXIS INTELLIGENCE -->
-      <section class="section-box">
-        <div class="section-header">
-          <span class="eyebrow-text">3-Axis Calibrated Scoring</span>
-          <span class="section-badge">Late Fusion</span>
-        </div>
-        <div class="axis-bars">
-          <div class="axis-row">
-            <div class="axis-meta">
-              <span>Threat Severity</span>
-              <strong id="axisThreatVal" class="text-threat">94%</strong>
+          <div class="tg-axis-container">
+            <div class="tg-axis-item">
+              <div class="tg-axis-labels">
+                <span>Threat Severity</span>
+                <strong id="fThreatVal" class="text-danger">--%</strong>
+              </div>
+              <div class="tg-axis-track"><div id="fThreatBar" class="tg-axis-bar bg-danger" style="width: 0%;"></div></div>
             </div>
-            <div class="track"><div id="axisThreatBar" class="fill fill-threat" style="width: 94%;"></div></div>
-          </div>
-          <div class="axis-row">
-            <div class="axis-meta">
-              <span>Infrastructure Trust</span>
-              <strong id="axisInfraVal" class="text-infra">83%</strong>
-            </div>
-            <div class="track"><div id="axisInfraBar" class="fill fill-infra" style="width: 83%;"></div></div>
-          </div>
-          <div class="axis-row">
-            <div class="axis-meta">
-              <span>Attribution Confidence</span>
-              <strong id="axisAttrVal" class="text-attrib">40%</strong>
-            </div>
-            <div class="track"><div id="axisAttrBar" class="fill fill-attrib" style="width: 40%;"></div></div>
-          </div>
-        </div>
-      </section>
 
-      <!-- 5. AUTHENTICATION PROTOCOLS -->
-      <section class="section-box">
-        <div class="section-header">
-          <span class="eyebrow-text">Authentication Protocols</span>
-        </div>
-        <div class="auth-grid">
-          <div class="auth-card" id="authSpf">
-            <span class="auth-name">SPF</span>
-            <span class="auth-status fail" id="authSpfVal">FAIL</span>
-          </div>
-          <div class="auth-card" id="authDkim">
-            <span class="auth-name">DKIM</span>
-            <span class="auth-status fail" id="authDkimVal">FAIL</span>
-          </div>
-          <div class="auth-card" id="authDmarc">
-            <span class="auth-name">DMARC</span>
-            <span class="auth-status fail" id="authDmarcVal">FAIL</span>
-          </div>
-          <div class="auth-card" id="authArc">
-            <span class="auth-name">ARC</span>
-            <span class="auth-status pass" id="authArcVal">PASS</span>
-          </div>
-        </div>
-      </section>
+            <div class="tg-axis-item">
+              <div class="tg-axis-labels">
+                <span>Infrastructure Trust</span>
+                <strong id="fInfraVal" class="text-info">--%</strong>
+              </div>
+              <div class="tg-axis-track"><div id="fInfraBar" class="tg-axis-bar bg-info" style="width: 0%;"></div></div>
+            </div>
 
-      <!-- 6. FULL INVESTIGATION DEEP LINK -->
-      <div class="footer-actions">
-        <button id="btnOpenFullInvestigation" class="btn-full-investigation">
-          <span>OPEN FORENSIC INVESTIGATION</span>
-          <span class="arrow-icon">&rarr;</span>
+            <div class="tg-axis-item">
+              <div class="tg-axis-labels">
+                <span>Attribution Confidence</span>
+                <strong id="fAttrVal" class="text-purple">--%</strong>
+              </div>
+              <div class="tg-axis-track"><div id="fAttrBar" class="tg-axis-bar bg-purple" style="width: 0%;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progressive Disclosure Accordions -->
+        <div class="tg-accordion-group mt-3">
+
+          <!-- 1. Email Metadata -->
+          <details class="tg-accordion" open>
+            <summary class="tg-accordion-summary">
+              <span class="tg-acc-title">1. Email Overview</span>
+              <svg class="tg-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="tg-accordion-content">
+              <div class="tg-kv-row">
+                <span class="tg-k">Subject:</span>
+                <span class="tg-v truncate" id="fSubject">--</span>
+              </div>
+              <div class="tg-kv-row">
+                <span class="tg-k">From:</span>
+                <span class="tg-v truncate" id="fFrom">--</span>
+              </div>
+              <div class="tg-kv-row">
+                <span class="tg-k">Claimed Domain:</span>
+                <span class="tg-v font-mono" id="fClaimedDomain">--</span>
+              </div>
+              <div class="tg-kv-row">
+                <span class="tg-k">Return-Path:</span>
+                <span class="tg-v font-mono" id="fActualDomain">--</span>
+              </div>
+            </div>
+          </details>
+
+          <!-- 2. Authentication Protocols -->
+          <details class="tg-accordion" open>
+            <summary class="tg-accordion-summary">
+              <span class="tg-acc-title">2. Authentication Protocols</span>
+              <svg class="tg-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="tg-accordion-content">
+              <div class="tg-auth-grid">
+                <div class="tg-auth-chip" id="chipSpf">
+                  <span class="tg-auth-lbl">SPF</span>
+                  <span class="tg-auth-val" id="fSpfVal">--</span>
+                </div>
+                <div class="tg-auth-chip" id="chipDkim">
+                  <span class="tg-auth-lbl">DKIM</span>
+                  <span class="tg-auth-val" id="fDkimVal">--</span>
+                </div>
+                <div class="tg-auth-chip" id="chipDmarc">
+                  <span class="tg-auth-lbl">DMARC</span>
+                  <span class="tg-auth-val" id="fDmarcVal">--</span>
+                </div>
+                <div class="tg-auth-chip" id="chipArc">
+                  <span class="tg-auth-lbl">ARC</span>
+                  <span class="tg-auth-val" id="fArcVal">--</span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <!-- 3. Sender & Network Intelligence -->
+          <details class="tg-accordion">
+            <summary class="tg-accordion-summary">
+              <span class="tg-acc-title">3. Network & GeoLocation</span>
+              <svg class="tg-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="tg-accordion-content">
+              <div class="tg-kv-row">
+                <span class="tg-k">Originating IP:</span>
+                <span class="tg-v font-mono" id="fOriginIp">--</span>
+              </div>
+              <div class="tg-kv-row">
+                <span class="tg-k">Physical Location:</span>
+                <span class="tg-v" id="fGeoLocation">--</span>
+              </div>
+              <div class="tg-kv-row">
+                <span class="tg-k">Relay Hops:</span>
+                <span class="tg-v" id="fHopsCount">--</span>
+              </div>
+              <div class="tg-kv-row">
+                <span class="tg-k">Linked Cases:</span>
+                <span class="tg-v" id="fLinkedCases">--</span>
+              </div>
+            </div>
+          </details>
+
+          <!-- 4. Cryptographic Evidence -->
+          <details class="tg-accordion">
+            <summary class="tg-accordion-summary">
+              <span class="tg-acc-title">4. Forensic Evidence Anchors</span>
+              <svg class="tg-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="tg-accordion-content">
+              <div class="tg-kv-row">
+                <span class="tg-k">Investigation ID:</span>
+                <span class="tg-v font-mono truncate" id="fEmailId">--</span>
+              </div>
+              <div class="tg-kv-row">
+                <span class="tg-k">Chain of Custody:</span>
+                <span class="tg-v text-success">SHA-256 Anchored (NIST SP 800-86)</span>
+              </div>
+            </div>
+          </details>
+
+        </div>
+
+        <button id="btnDeepInvestigate" class="tg-btn-primary w-full mt-3">
+          <span>Launch Full Investigation on Web Console</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </button>
-      </div>
-    </section>
 
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- VIEW 5: BATCH SCAN SUMMARY                                  -->
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    <section id="viewBatchSummary" class="view-panel hidden">
-      <div class="batch-header">
-        <div>
-          <span class="eyebrow-text">Batch Scan Completed</span>
-          <h2 class="batch-title">Inbox Forensic Report</h2>
-        </div>
-        <button id="btnBatchDone" class="btn-secondary-action">Done</button>
-      </div>
+      </section>
 
-      <!-- Batch Metric Counters -->
-      <div class="batch-metrics-row">
-        <div class="metric-pill critical">
-          <span class="m-val" id="batchCriticalCount">0</span>
-          <span class="m-lbl">Critical</span>
-        </div>
-        <div class="metric-pill suspicious">
-          <span class="m-val" id="batchSuspiciousCount">0</span>
-          <span class="m-lbl">Suspicious</span>
-        </div>
-        <div class="metric-pill safe">
-          <span class="m-val" id="batchSafeCount">0</span>
-          <span class="m-lbl">Clean</span>
-        </div>
-      </div>
+      <!-- ───────────────────────────────────────────────────────── -->
+      <!-- VIEW: MAILBOX (Google OAuth & Batch Sync)                 -->
+      <!-- ───────────────────────────────────────────────────────── -->
+      <section id="viewMailbox" class="tg-view hidden">
+        
+        <!-- Mailbox Disconnected State -->
+        <div id="boxDisconnected" class="tg-card">
+          <div class="tg-card-header">
+            <span class="tg-card-tag">GMAIL API OAUTH</span>
+            <span class="tg-card-badge">Read-Only</span>
+          </div>
+          <h4 class="tg-card-title">Connect Gmail Account</h4>
+          <p class="tg-card-desc">Authorize read-only access to inspect inbound messages directly through the TRACEGUARD forensic gateway.</p>
+          
+          <button id="btnConnectGmail" class="tg-btn-primary w-full mt-2">
+            <span>Authorize with Google OAuth</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
 
-      <!-- Batch Item List -->
-      <div id="batchResultsList" class="batch-list">
-        <!-- Populated by JS -->
-      </div>
-    </section>
+          <div class="tg-security-note mt-2">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Read-only scope (<code class="font-mono">gmail.readonly</code>). Zero email modification.</span>
+          </div>
+        </div>
 
-    <!-- Error Banner / Notification -->
-    <div id="errorToast" class="error-toast hidden">
+        <!-- Mailbox Connected State -->
+        <div id="boxConnected" class="hidden">
+          <div class="tg-user-bar">
+            <div class="tg-user-info truncate">
+              <span class="tg-user-dot"></span>
+              <span id="userEmailText" class="tg-user-email truncate">analyst@gmail.com</span>
+            </div>
+            <button id="btnDisconnect" class="tg-btn-ghost-sm text-danger">Disconnect</button>
+          </div>
+
+          <div class="tg-card mt-2">
+            <div class="tg-card-header">
+              <span class="tg-card-tag">BATCH SCAN</span>
+              <span class="tg-card-badge">Automated</span>
+            </div>
+            <h4 class="tg-card-title">Scan Mailbox Messages</h4>
+            
+            <div class="tg-scan-row mt-2">
+              <select id="scanQuerySelect" class="tg-select">
+                <option value="in:inbox" selected>Inbox (All)</option>
+                <option value="is:unread">Unread Only</option>
+                <option value="newer_than:7d">Last 7 Days</option>
+                <option value="has:attachment">With Attachments</option>
+              </select>
+
+              <select id="scanCountSelect" class="tg-select w-auto">
+                <option value="10">10 msgs</option>
+                <option value="20" selected>20 msgs</option>
+                <option value="50">50 msgs</option>
+              </select>
+            </div>
+
+            <button id="btnStartInboxScan" class="tg-btn-primary w-full mt-2">
+              <span>Run Forensic Inbox Scan</span>
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ───────────────────────────────────────────────────────── -->
+      <!-- VIEW: LOADING / ANALYSIS ACTIVE                           -->
+      <!-- ───────────────────────────────────────────────────────── -->
+      <section id="viewLoading" class="tg-view hidden">
+        <div class="tg-loading-card">
+          <div class="tg-spinner-ring"></div>
+          <h3 class="tg-loading-title">Analyzing Email Security</h3>
+          <p class="tg-loading-target truncate" id="loadingSubject">Processing RFC 822 stream...</p>
+
+          <div class="tg-progress-bar">
+            <div class="tg-progress-fill" id="loadingProgressFill" style="width: 25%;"></div>
+          </div>
+
+          <!-- Step-by-step verification checklist -->
+          <div class="tg-loading-steps">
+            <div class="tg-step-row" id="step1">
+              <span class="tg-step-icon">✓</span>
+              <span>Reading email metadata and headers</span>
+            </div>
+            <div class="tg-step-row" id="step2">
+              <span class="tg-step-icon">✓</span>
+              <span>Verifying SPF, DKIM, and DMARC alignment</span>
+            </div>
+            <div class="tg-step-row" id="step3">
+              <span class="tg-step-icon">◉</span>
+              <span>Inspecting sender network & relay hops</span>
+            </div>
+            <div class="tg-step-row" id="step4">
+              <span class="tg-step-icon">○</span>
+              <span>Analyzing embedded links and attachments</span>
+            </div>
+            <div class="tg-step-row" id="step5">
+              <span class="tg-step-icon">○</span>
+              <span>Synthesizing 3-axis threat assessment</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────────────────────────────────────────── -->
+      <!-- VIEW: ERROR STATE                                         -->
+      <!-- ───────────────────────────────────────────────────────── -->
+      <section id="viewError" class="tg-view hidden">
+        <div class="tg-error-card">
+          <div class="tg-error-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <h3 class="tg-error-title">Analysis temporarily unavailable</h3>
+          <p class="tg-error-desc" id="errorDescription">
+            We couldn't connect to the TRACEGUARD analysis gateway at 127.0.0.1:8000. Please ensure the backend server is running.
+          </p>
+          <div class="tg-error-actions">
+            <button id="btnRetryAnalysis" class="tg-btn-primary w-full">Retry Analysis</button>
+            <button id="btnDismissErrorView" class="tg-btn-secondary w-full">Return to Dashboard</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Global Floating Error Toast -->
+    <div id="errorToast" class="tg-toast hidden">
       <span id="errorMessage">An unexpected error occurred.</span>
-      <button id="btnDismissError" class="toast-close">&times;</button>
+      <button id="btnDismissToast" class="tg-toast-close">&times;</button>
     </div>
+
   </div>
 
   <script type="module" src="popup.js"></script>
