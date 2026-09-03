@@ -25,7 +25,7 @@ async def get_gmail_status():
     return {
         "email": settings.GMAIL_EMAIL,
         "configured": is_conf,
-        "connected": is_conf,
+        "connected": gmail_imap_service.is_connected,
         "host": settings.IMAP_HOST,
         "port": settings.IMAP_PORT,
         "folder": settings.IMAP_FOLDER,

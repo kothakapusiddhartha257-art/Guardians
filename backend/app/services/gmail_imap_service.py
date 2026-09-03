@@ -17,6 +17,9 @@ logger = logging.getLogger("traceguard.gmail_imap")
 
 # Stateful deduplication registry: maps Message-ID / UID / SHA256 -> Scanned Record
 SCANNED_GMAIL_REGISTRY: Dict[str, Dict[str, Any]] = {}
+import os
+from dotenv import load_dotenv
+
 LATEST_SCAN_SUMMARY: Dict[str, Any] = {
     "total_scanned": 0,
     "high_risk": 0,
@@ -34,28 +37,38 @@ class GmailImapService:
         self._auto_scan_task: Optional[asyncio.Task] = None
         self.auto_scan_enabled: bool = settings.GMAIL_AUTO_SCAN
         self.auto_scan_interval_minutes: int = max(1, settings.GMAIL_AUTO_SCAN_INTERVAL_MINUTES)
+        self.is_connected: bool = False
 
     def is_configured(self) -> bool:
-        pwd = settings.GMAIL_APP_PASSWORD.strip()
-        return bool(pwd and pwd != "PASTE_APP_PASSWORD_HERE")
+        load_dotenv(override=True)
+        pwd = os.getenv("GMAIL_APP_PASSWORD", settings.GMAIL_APP_PASSWORD).strip()
+        return bool(pwd and pwd not in ("PASTE_APP_PASSWORD_HERE", "abcdefghijklmnop", ""))
 
     def _sync_connect_and_login(self) -> imaplib.IMAP4_SSL:
         """Internal synchronous helper to establish SSL IMAP connection."""
-        if not self.is_configured():
-            raise ValueError("Gmail App Password not configured in backend .env file.")
+        load_dotenv(override=True)
+        user = os.getenv("GMAIL_EMAIL", settings.GMAIL_EMAIL).strip()
+        pwd = os.getenv("GMAIL_APP_PASSWORD", settings.GMAIL_APP_PASSWORD).strip().replace(" ", "")
 
-        user = settings.GMAIL_EMAIL
-        pwd = settings.GMAIL_APP_PASSWORD.replace(" ", "")  # Google App Passwords can have spaces
+        if not pwd or pwd in ("PASTE_APP_PASSWORD_HERE", "abcdefghijklmnop"):
+            self.is_connected = False
+            raise ValueError("Invalid Google App Password. Please generate a real 16-character App Password at myaccount.google.com/apppasswords and paste it in .env.")
 
         try:
             client = imaplib.IMAP4_SSL(settings.IMAP_HOST, settings.IMAP_PORT)
             client.login(user, pwd)
             client.select(settings.IMAP_FOLDER, readonly=True)
+            self.is_connected = True
             return client
         except imaplib.IMAP4.error as e:
-            logger.error(f"[Gmail IMAP] Authentication or folder selection failed: {e}")
-            raise PermissionError("Unable to authenticate with Gmail. Check the backend Gmail configuration.")
+            self.is_connected = False
+            err_str = str(e)
+            logger.error(f"[Gmail IMAP] Authentication failed for {user}: {e}")
+            if "AUTHENTICATIONFAILED" in err_str or "Invalid credentials" in err_str:
+                raise PermissionError("Google rejected the password. Please verify that 2-Step Verification is ON and generate an App Password at https://myaccount.google.com/apppasswords.")
+            raise PermissionError(f"Unable to authenticate with Gmail: {err_str}")
         except Exception as e:
+            self.is_connected = False
             logger.error(f"[Gmail IMAP] Connection error to {settings.IMAP_HOST}:{settings.IMAP_PORT}: {e}")
             raise ConnectionError(f"Failed to connect to Gmail IMAP service: {str(e)}")
 
