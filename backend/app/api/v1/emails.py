@@ -1,7 +1,9 @@
 import io
+import base64
 from typing import Optional, List
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Response
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
 
 from backend.app.schemas.canonical import (
     FullEmailInvestigationBundle, ThreeAxisScore, AuthResult, RelayHop,
@@ -13,6 +15,13 @@ from backend.app.services.reporting import generate_forensic_pdf_report, generat
 from backend.app.services.evidence import read_raw_evidence
 
 router = APIRouter(prefix="/emails", tags=["Emails"])
+
+
+class EmailIngestRequest(BaseModel):
+    raw_eml_base64: Optional[str] = None
+    raw_mime: Optional[str] = None
+    gmail_message_id: Optional[str] = None
+    case_id: Optional[str] = None
 
 
 @router.post("", status_code=202)
@@ -40,6 +49,76 @@ async def upload_and_analyze_email(
         "sha256": bundle.email.sha256,
         "threat_score": bundle.risk_score.threat_score,
         "classification": bundle.risk_score.classification
+    }
+
+
+@router.post("/ingest", status_code=200)
+async def ingest_raw_email(req: EmailIngestRequest):
+    """Direct forensic ingestion endpoint for browser extension and automated gateways."""
+    if req.raw_eml_base64:
+        try:
+            content_bytes = base64.b64decode(req.raw_eml_base64)
+        except Exception:
+            padded = req.raw_eml_base64 + "=" * (-len(req.raw_eml_base64) % 4)
+            content_bytes = base64.urlsafe_b64decode(padded)
+    elif req.raw_mime:
+        content_bytes = req.raw_mime.encode("utf-8")
+    else:
+        raise HTTPException(status_code=400, detail="Must provide either raw_eml_base64 or raw_mime string.")
+
+    if len(content_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Email payload is empty")
+
+    bundle = await execute_analysis_dag(content_bytes, case_id=req.case_id)
+
+    claimed_dom = bundle.email.headers_normalized.from_address.domain if bundle.email.headers_normalized.from_address else ""
+    actual_dom = bundle.email.headers_normalized.return_path.domain if bundle.email.headers_normalized.return_path else claimed_dom
+    
+    from_rec = bundle.email.headers_normalized.from_address
+    if from_rec:
+        from_addr = f"{from_rec.display_name} <{from_rec.address}>" if from_rec.display_name else from_rec.address
+    else:
+        from_addr = bundle.email.from_address
+
+    signals = []
+    if bundle.risk_score.top_reasons:
+        signals = [r.human_readable for r in bundle.risk_score.top_reasons[:3]]
+    elif bundle.indicators:
+        signals = [ind.description for ind in bundle.indicators[:3]]
+    else:
+        signals = ["Anomalous sender infrastructure", "Cryptographic authentication check", "Intent classification pattern"]
+
+    subj = bundle.email.headers_normalized.subject if bundle.email.headers_normalized.subject else bundle.email.headers_raw.get("subject", "(No Subject)")
+
+    return {
+        "status": "COMPLETE",
+        "email_id": bundle.email.email_id,
+        "case_id": bundle.case_id,
+        "gmail_message_id": req.gmail_message_id or "",
+        "subject": subj,
+        "from_address": from_addr,
+        "claimed_domain": claimed_dom,
+        "actual_domain": actual_dom,
+        "threat_score": bundle.risk_score.threat_score,
+        "infra_confidence": bundle.risk_score.infrastructure_confidence,
+        "attribution_confidence": bundle.risk_score.attribution_confidence,
+        "classification": bundle.risk_score.classification,
+        "explanation_summary": f"Detected {bundle.risk_score.classification} threat pattern with {int(bundle.risk_score.threat_score * 100)}% severity.",
+        "key_signals": signals,
+        "auth": {
+            "spf": bundle.auth.spf.result.upper() if bundle.auth.spf else "NONE",
+            "dkim": "PASS" if any(d.valid for d in bundle.auth.dkim) else ("FAIL" if bundle.auth.dkim else "NONE"),
+            "dmarc": bundle.auth.dmarc.result.upper() if bundle.auth.dmarc else "NONE",
+            "arc": "PASS" if bundle.auth.arc.chain_valid else ("FAIL" if bundle.auth.arc.present else "NONE")
+        },
+        "origin_ip": bundle.geo_locations[0].ip if bundle.geo_locations else "",
+        "origin_country": bundle.geo_locations[0].country if bundle.geo_locations else "",
+        "origin_city": bundle.geo_locations[0].city if bundle.geo_locations else "",
+        "relay_hops_count": len(bundle.relay_hops),
+        "related_cases_count": bundle.related_cases_count,
+        "related_case_ids": bundle.related_case_ids,
+        "investigation_url": f"/investigation?id={bundle.email.email_id}",
+        "created_at": bundle.chain_of_custody[0].timestamp if bundle.chain_of_custody else ""
     }
 
 
@@ -111,19 +190,6 @@ async def get_email_attachments(email_id: str) -> List[AttachmentAnalysisRecord]
     return bundle.attachments
 
 
-@router.get("/{email_id}/risk")
-async def get_email_risk_scores(email_id: str) -> ThreeAxisScore:
-    bundle = await get_full_email_investigation(email_id)
-    return bundle.risk_score
-
-
-@router.get("/{email_id}/graph")
-async def get_email_subgraph(email_id: str):
-    bundle = await get_full_email_investigation(email_id)
-    subgraph = graph_engine.export_subgraph_for_visualization(email_id)
-    return subgraph
-
-
 @router.get("/{email_id}/report.pdf")
 async def download_pdf_report(email_id: str):
     bundle = await get_full_email_investigation(email_id)
@@ -131,33 +197,24 @@ async def download_pdf_report(email_id: str):
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=TRACEGUARD_{bundle.case_id}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=TraceGuard_Report_{bundle.case_id}.pdf"}
     )
 
 
-@router.get("/{email_id}/report.json")
-async def download_json_evidence_bundle(email_id: str):
-    bundle = await get_full_email_investigation(email_id)
-    return bundle.model_dump()
-
-
-@router.get("/{email_id}/report.stix")
+@router.get("/{email_id}/stix.json")
 async def download_stix_bundle(email_id: str):
     bundle = await get_full_email_investigation(email_id)
     stix_dict = generate_stix_bundle(bundle)
-    return JSONResponse(
-        content=stix_dict,
-        headers={"Content-Disposition": f"attachment; filename=TRACEGUARD_{bundle.case_id}.stix.json"}
-    )
+    return JSONResponse(content=stix_dict)
 
 
 @router.get("/{email_id}/raw.eml")
-async def download_original_eml(email_id: str):
-    raw = read_raw_evidence(email_id)
-    if not raw:
-        raise HTTPException(status_code=404, detail="Raw .eml evidence not found")
+async def download_raw_eml(email_id: str):
+    eml_bytes = read_raw_evidence(email_id)
+    if not eml_bytes:
+        raise HTTPException(status_code=404, detail="Raw evidence .eml not found on disk")
     return Response(
-        content=raw,
+        content=eml_bytes,
         media_type="message/rfc822",
         headers={"Content-Disposition": f"attachment; filename=evidence_{email_id}.eml"}
     )

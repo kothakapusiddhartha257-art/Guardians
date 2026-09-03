@@ -1,432 +1,433 @@
 /**
- * TRACEGUARD AI - Extension Popup Controller
- * Renders instant forensic intelligence, 3-axis scores, top 3 signals, sender comparison, and theme synchronization.
+ * TRACEGUARD AI - Extension Popup Controller (v2)
  */
 
-const WEB_APP_BASE = "http://127.0.0.1:5173";
+const WEB_APP_URL = "http://127.0.0.1:5173";
 
-// Preset intelligence bundles
-const PRESETS = {
-  bec: {
-    id: "email-bec-demo",
-    email_id: "email-bec-demo",
-    case_id: "CASE-2026-00041",
-    subject: "URGENT: Vendor Payment Account Change & Wire Transfer Directive",
-    sender: "finance@secure-exchange-transfer.xyz",
-    claimed_domain: "acme.com (CEO)",
-    actual_domain: "secure-exchange-transfer.xyz",
-    threat_score: 0.94,
-    infra_confidence: 0.83,
-    attribution_confidence: 0.40,
-    verdict: "HIGH RISK",
-    verdict_class: "critical",
-    action_taken: "QUARANTINED",
-    primary_action_label: "Quarantine Email",
-    signals: [
-      { title: "Reply-To Mismatch", desc: "Sender and reply destination belong to completely different unauthenticated domains." },
-      { title: "DMARC Verification Failed", desc: "The originating server could not prove authorization for claimed sender domain." },
-      { title: "Financial Urgency Directive", desc: "Psychological urgency cues demanding immediate wire transfer before end of day." }
-    ],
-    auth: { spf: "FAIL", dkim: "FAIL", dmarc: "FAIL", arc: "PASS" }
-  },
-  credential: {
-    id: "email-cred-demo",
-    email_id: "email-cred-demo",
-    case_id: "CASE-2026-00042",
-    subject: "Action Required: Your Office 365 Password Expires in 24 Hours",
-    sender: "admin@m365-security-update.top",
-    claimed_domain: "microsoft.com",
-    actual_domain: "m365-security-update.top",
-    threat_score: 0.88,
-    infra_confidence: 0.91,
-    attribution_confidence: 0.55,
-    verdict: "HIGH RISK",
-    verdict_class: "critical",
-    action_taken: "QUARANTINED",
-    primary_action_label: "Quarantine Email",
-    signals: [
-      { title: "Deceptive Anchor Text Mismatch", desc: "Displays 'login.microsoftonline.com' but resolves to raw unverified IP." },
-      { title: "Direct IP-Literal Harvest Link", desc: "Link uses direct IP destination http://185.23.11.4/auth to evade reputation filters." },
-      { title: "Disposable Domain (<15 Days Old)", desc: "Domain m365-security-update.top registered 4 days ago with high risk decay." }
-    ],
-    auth: { spf: "FAIL", dkim: "FAIL", dmarc: "FAIL", arc: "NONE" }
-  },
-  malware: {
-    id: "email-malware-demo",
-    email_id: "email-malware-demo",
-    case_id: "CASE-2026-00043",
-    subject: "Overdue Invoice #88219 - Final Notice Before Legal Action",
-    sender: "invoices@overdue-billing-notice.xyz",
-    claimed_domain: "billing-corp.com",
-    actual_domain: "overdue-billing-notice.xyz",
-    threat_score: 0.96,
-    infra_confidence: 0.95,
-    attribution_confidence: 0.60,
-    verdict: "MALICIOUS",
-    verdict_class: "critical",
-    action_taken: "QUARANTINED",
-    primary_action_label: "Quarantine Email",
-    signals: [
-      { title: "Executable Masquerade (MZ Header)", desc: "Claimed invoice.pdf contains Windows PE executable magic bytes." },
-      { title: "High Shannon Entropy (7.82)", desc: "Attachment payload indicates dense encrypted/packed malicious code." },
-      { title: "TOR Exit Relay Origin", desc: "Originating SMTP relay matches known anonymous darknet exit point." }
-    ],
-    auth: { spf: "SOFTFAIL", dkim: "FAIL", dmarc: "FAIL", arc: "NONE" }
-  },
-  clean: {
-    id: "email-clean-demo",
-    email_id: "email-clean-demo",
-    case_id: "CASE-2026-00044",
-    subject: "Cybersecurity Weekly Digest #412: Zero Trust Architecture Insights",
-    sender: "newsletter@cybersec-weekly.org",
-    claimed_domain: "cybersec-weekly.org",
-    actual_domain: "cybersec-weekly.org",
-    threat_score: 0.04,
-    infra_confidence: 0.98,
-    attribution_confidence: 0.92,
-    verdict: "CLEAN",
-    verdict_class: "safe",
-    action_taken: "DELIVERED",
-    primary_action_label: "Open Investigation",
-    signals: [
-      { title: "Cryptographic Alignment Clear", desc: "SPF, DKIM, and DMARC verification strictly aligned with root domain." },
-      { title: "Established Domain Reputation", desc: "Domain registered >8 years ago with clean historical threat ledger." },
-      { title: "No Intent Pressure Detected", desc: "Educational newsletter content with no credential or financial calls to action." }
-    ],
-    auth: { spf: "PASS", dkim: "PASS", dmarc: "PASS", arc: "PASS" }
-  }
-};
+// DOM Elements
+const themeSelect = document.getElementById("themeSelect");
+const statusIndicator = document.getElementById("statusIndicator");
+const statusText = document.getElementById("statusText");
 
-let currentEmailId = "email-bec-demo";
+// Views
+const viewDisconnected = document.getElementById("viewDisconnected");
+const viewConnected = document.getElementById("viewConnected");
+const viewScanning = document.getElementById("viewScanning");
+const viewResults = document.getElementById("viewResults");
+const viewBatchSummary = document.getElementById("viewBatchSummary");
 
-document.addEventListener("DOMContentLoaded", () => {
-  // Theme Switcher & Storage Sync
-  const themeSelect = document.getElementById("themeSelect");
-  const storedTheme = localStorage.getItem("traceguard_theme") || "theme-obsidian";
-  document.documentElement.className = storedTheme;
-  if (themeSelect) {
-    themeSelect.value = storedTheme;
-    themeSelect.addEventListener("change", (e) => {
-      const newTheme = e.target.value;
-      document.documentElement.className = newTheme;
-      localStorage.setItem("traceguard_theme", newTheme);
-      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.set({ traceguard_theme: newTheme });
-      }
-    });
-  }
+// Disconnected Controls
+const btnConnectGmail = document.getElementById("btnConnectGmail");
 
-  // Mode Navigation Tabs
-  const modeBtns = document.querySelectorAll(".mode-btn");
-  const tabPanes = document.querySelectorAll(".tab-pane");
+// Connected Controls
+const userEmailLabel = document.getElementById("userEmailLabel");
+const btnDisconnect = document.getElementById("btnDisconnect");
+const scanQuerySelect = document.getElementById("scanQuerySelect");
+const scanCountSelect = document.getElementById("scanCountSelect");
+const btnStartInboxScan = document.getElementById("btnStartInboxScan");
+const btnScanCurrentEmail = document.getElementById("btnScanCurrentEmail");
+const recentScansList = document.getElementById("recentScansList");
+const recentCountBadge = document.getElementById("recentCountBadge");
 
-  modeBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      modeBtns.forEach((b) => b.classList.remove("active"));
-      tabPanes.forEach((p) => p.classList.remove("active"));
+// Scanning Controls
+const scanProgressCount = document.getElementById("scanProgressCount");
+const progressBar = document.getElementById("progressBar");
+const activeScanSubject = document.getElementById("activeScanSubject");
+const activeScanStage = document.getElementById("activeScanStage");
 
-      btn.classList.add("active");
-      const target = document.getElementById(btn.dataset.tab);
-      if (target) target.classList.add("active");
-    });
-  });
+// Results Controls
+const btnBackToDashboard = document.getElementById("btnBackToDashboard");
+const verdictTag = document.getElementById("verdictTag");
+const actionTag = document.getElementById("actionTag");
+const scoreNumber = document.getElementById("scoreNumber");
+const emailSubject = document.getElementById("emailSubject");
+const emailSender = document.getElementById("emailSender");
+const signalsList = document.getElementById("signalsList");
+const claimedDomain = document.getElementById("claimedDomain");
+const actualDomain = document.getElementById("actualDomain");
+const axisThreatVal = document.getElementById("axisThreatVal");
+const axisThreatBar = document.getElementById("axisThreatBar");
+const axisInfraVal = document.getElementById("axisInfraVal");
+const axisInfraBar = document.getElementById("axisInfraBar");
+const axisAttrVal = document.getElementById("axisAttrVal");
+const axisAttrBar = document.getElementById("axisAttrBar");
+const authSpfVal = document.getElementById("authSpfVal");
+const authDkimVal = document.getElementById("authDkimVal");
+const authDmarcVal = document.getElementById("authDmarcVal");
+const authArcVal = document.getElementById("authArcVal");
+const btnOpenFullInvestigation = document.getElementById("btnOpenFullInvestigation");
 
-  // Initial Render with Default BEC Scenario
-  renderIntelligenceDossier(PRESETS.bec);
+// Batch Controls
+const batchCriticalCount = document.getElementById("batchCriticalCount");
+const batchSuspiciousCount = document.getElementById("batchSuspiciousCount");
+const batchSafeCount = document.getElementById("batchSafeCount");
+const batchResultsList = document.getElementById("batchResultsList");
+const btnBatchDone = document.getElementById("btnBatchDone");
 
-  // 1. Scan Active Webmail Email
-  const btnScanWebmail = document.getElementById("btnScanWebmail");
-  const webmailMeta = document.getElementById("webmailMeta");
-  const metaClient = document.getElementById("metaClient");
-  const metaSubject = document.getElementById("metaSubject");
-  const analyzingPipeline = document.getElementById("analyzingPipeline");
+// Error Toast
+const errorToast = document.getElementById("errorToast");
+const errorMessage = document.getElementById("errorMessage");
+const btnDismissError = document.getElementById("btnDismissError");
 
-  if (btnScanWebmail) {
-    btnScanWebmail.addEventListener("click", async () => {
-      if (typeof chrome === "undefined" || !chrome.tabs) {
-        alert("Active webmail scan requires running in a browser tab.");
-        return;
-      }
+let currentActiveEmailId = null;
+let currentActiveView = "disconnected";
 
-      try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab) return;
+// ═══════════════════════════════════════════════════════════════════
+// 1. INITIALIZATION & THEMES
+// ═══════════════════════════════════════════════════════════════════
 
-        // Show animated pipeline state
-        analyzingPipeline.classList.remove("hidden");
-
-        chrome.tabs.sendMessage(tab.id, { action: "EXTRACT_EMAIL_DATA" }, (response) => {
-          setTimeout(() => {
-            analyzingPipeline.classList.add("hidden");
-          }, 600);
-
-          if (chrome.runtime.lastError || !response || !response.success) {
-            alert("Could not extract email automatically. Please ensure an email is open on Gmail or Outlook, or use Manual Check.");
-            return;
-          }
-
-          const data = response.data;
-          metaClient.textContent = data.client || "Webmail";
-          metaSubject.textContent = data.subject || "(No subject)";
-          webmailMeta.classList.remove("hidden");
-
-          // Run client heuristic detector
-          if (typeof PhishingDetector !== "undefined") {
-            const scan = PhishingDetector.scanEmail(data);
-            const isMalicious = scan.score >= 60;
-            const isCaution = scan.score >= 25 && scan.score < 60;
-
-            const customBundle = {
-              id: "email-active-scan",
-              email_id: "email-bec-demo",
-              subject: data.subject || "Open Webmail Message",
-              sender: data.sender || "Sender Address",
-              claimed_domain: data.sender ? (data.sender.split("@")[1] || "claimed.com") : "claimed.com",
-              actual_domain: data.sender ? (data.sender.split("@")[1] || "actual.xyz") : "actual.xyz",
-              threat_score: scan.threatScore,
-              infra_confidence: scan.infraConfidence,
-              attribution_confidence: scan.attributionConfidence,
-              verdict: isMalicious ? "HIGH RISK" : isCaution ? "CAUTION" : "CLEAN",
-              verdict_class: isMalicious ? "critical" : isCaution ? "caution" : "safe",
-              action_taken: isMalicious ? "QUARANTINED" : isCaution ? "FLAGGED" : "DELIVERED",
-              primary_action_label: isMalicious ? "Quarantine Email" : "Flag for Review",
-              signals: scan.threats.slice(0, 3).map((t) => ({
-                title: t.title,
-                desc: t.description
-              })),
-              auth: {
-                spf: isMalicious ? "FAIL" : "PASS",
-                dkim: isMalicious ? "FAIL" : "PASS",
-                dmarc: isMalicious ? "FAIL" : "PASS",
-                arc: "PASS"
-              }
-            };
-
-            renderIntelligenceDossier(customBundle);
-          }
-        });
-      } catch (err) {
-        analyzingPipeline.classList.add("hidden");
-        console.error(err);
-      }
-    });
-  }
-
-  // 2. Manual Analysis
-  const btnManualAnalyze = document.getElementById("btnManualAnalyze");
-  const btnManualSample = document.getElementById("btnManualSample");
-  const manualSender = document.getElementById("manualSender");
-  const manualSubject = document.getElementById("manualSubject");
-  const manualBody = document.getElementById("manualBody");
-
-  if (btnManualAnalyze) {
-    btnManualAnalyze.addEventListener("click", () => {
-      const sender = manualSender.value.trim();
-      const subject = manualSubject.value.trim();
-      const body = manualBody.value.trim();
-
-      if (!sender && !subject && !body) {
-        alert("Please enter a sender, subject, or message body to analyze.");
-        return;
-      }
-
-      if (typeof PhishingDetector !== "undefined") {
-        const scan = PhishingDetector.scanEmail({ sender, subject, body });
-        const isMalicious = scan.score >= 60;
-        const isCaution = scan.score >= 25 && scan.score < 60;
-
-        renderIntelligenceDossier({
-          id: "email-manual-check",
-          email_id: "email-bec-demo",
-          subject: subject || "Manual Investigation Sample",
-          sender: sender || "unknown@unverified.org",
-          claimed_domain: sender.includes("@") ? sender.split("@")[1].replace(/>/g, "").trim() : "unverified.com",
-          actual_domain: "external-relay.xyz",
-          threat_score: scan.threatScore,
-          infra_confidence: scan.infraConfidence,
-          attribution_confidence: scan.attributionConfidence,
-          verdict: isMalicious ? "HIGH RISK" : isCaution ? "CAUTION" : "CLEAN",
-          verdict_class: isMalicious ? "critical" : isCaution ? "caution" : "safe",
-          action_taken: isMalicious ? "QUARANTINED" : isCaution ? "FLAGGED" : "DELIVERED",
-          primary_action_label: isMalicious ? "Quarantine Email" : "Flag for Review",
-          signals: scan.threats.slice(0, 3).map((t) => ({
-            title: t.title,
-            desc: t.description
-          })),
-          auth: { spf: "FAIL", dkim: "FAIL", dmarc: "FAIL", arc: "NONE" }
-        });
-      }
-    });
-  }
-
-  if (btnManualSample) {
-    btnManualSample.addEventListener("click", () => {
-      manualSender.value = "Executive Directives <ceo.john@acme-payments-verify.xyz>";
-      manualSubject.value = "URGENT: Change Vendor Wire Instructions for Q3 Settlement";
-      manualBody.value = "Sarah,\n\nPlease process an urgent wire transfer of $84,200 to our supplier's updated bank account below:\nRouting: 021000021\nAccount: 48829104882\n\nEnsure this is completed before 2:00 PM today.\n\nRegards,\nJohn Smith, CEO";
-      btnManualAnalyze.click();
-    });
-  }
-
-  // 3. Link Inspection
-  const btnUrlInspect = document.getElementById("btnUrlInspect");
-  const urlInput = document.getElementById("urlInput");
-
-  if (btnUrlInspect) {
-    btnUrlInspect.addEventListener("click", () => {
-      const url = urlInput.value.trim();
-      if (!url) {
-        alert("Please enter a link destination to inspect.");
-        return;
-      }
-
-      if (typeof PhishingDetector !== "undefined") {
-        const urlAnalysis = PhishingDetector.analyzeUrl(url);
-        const isSuspicious = urlAnalysis.isSuspicious;
-
-        renderIntelligenceDossier({
-          id: "url-inspect-sample",
-          email_id: "email-cred-demo",
-          subject: `Destination Analysis: ${url.length > 35 ? url.substring(0, 32) + '...' : url}`,
-          sender: "inbound-link@sandbox.traceguard",
-          claimed_domain: "login.microsoftonline.com",
-          actual_domain: url.includes("://") ? url.split("://")[1].split("/")[0] : url,
-          threat_score: isSuspicious ? 0.88 : 0.05,
-          infra_confidence: 0.90,
-          attribution_confidence: 0.50,
-          verdict: isSuspicious ? "HIGH RISK" : "CLEAN",
-          verdict_class: isSuspicious ? "critical" : "safe",
-          action_taken: isSuspicious ? "QUARANTINED" : "DELIVERED",
-          primary_action_label: isSuspicious ? "Block Destination" : "Verified Safe",
-          signals: urlAnalysis.findings.map((f) => ({
-            title: f.type.replace(/_/g, " "),
-            desc: f.message
-          })),
-          auth: { spf: "PASS", dkim: "PASS", dmarc: "PASS", arc: "PASS" }
-        });
-      }
-    });
-  }
-
-  // 4. Presets
-  const presetSelect = document.getElementById("presetSelect");
-  const btnLoadPreset = document.getElementById("btnLoadPreset");
-
-  if (btnLoadPreset && presetSelect) {
-    btnLoadPreset.addEventListener("click", () => {
-      const key = presetSelect.value;
-      const preset = PRESETS[key] || PRESETS.bec;
-      renderIntelligenceDossier(preset);
-    });
-  }
-
-  // 5. Open Forensic Investigation CTA
-  const btnOpenFullInvestigation = document.getElementById("btnOpenFullInvestigation");
-  if (btnOpenFullInvestigation) {
-    btnOpenFullInvestigation.addEventListener("click", () => {
-      const url = `${WEB_APP_BASE}/investigation?id=${currentEmailId}`;
-      if (typeof chrome !== "undefined" && chrome.tabs && chrome.tabs.create) {
-        chrome.tabs.create({ url });
-      } else {
-        window.open(url, "_blank");
-      }
-    });
-  }
+document.addEventListener("DOMContentLoaded", async () => {
+  await initTheme();
+  await checkAuthStatus();
+  await loadRecentScans();
+  setupEventListeners();
 });
 
-function renderIntelligenceDossier(data) {
-  currentEmailId = data.email_id || "email-bec-demo";
+async function initTheme() {
+  const { traceguard_theme = "obsidian" } = await chrome.storage.local.get("traceguard_theme");
+  document.documentElement.setAttribute("data-theme", traceguard_theme);
+  themeSelect.value = traceguard_theme;
 
-  const scorePct = Math.round(data.threat_score * 100);
-  const infraPct = Math.round(data.infra_confidence * 100);
-  const attrPct = Math.round(data.attribution_confidence * 100);
+  themeSelect.addEventListener("change", (e) => {
+    const val = e.target.value;
+    document.documentElement.setAttribute("data-theme", val);
+    chrome.storage.local.set({ traceguard_theme: val });
+  });
+}
 
-  // Verdict Hero
-  const verdictTag = document.getElementById("verdictTag");
-  verdictTag.textContent = data.verdict || (scorePct >= 70 ? "⚠ HIGH RISK" : "CLEAN");
-  verdictTag.className = `verdict-tag ${data.verdict_class || (scorePct >= 70 ? "critical" : "safe")}`;
+function showView(viewId) {
+  currentActiveView = viewId;
+  const views = [viewDisconnected, viewConnected, viewScanning, viewResults, viewBatchSummary];
+  views.forEach((v) => {
+    if (v) v.classList.add("hidden");
+  });
 
-  const actionTag = document.getElementById("actionTag");
-  actionTag.textContent = data.action_taken || "EVALUATED";
-  actionTag.style.background = scorePct >= 70 ? "var(--threat-critical)" : "var(--threat-safe)";
+  if (viewId === "disconnected") viewDisconnected.classList.remove("hidden");
+  else if (viewId === "connected") viewConnected.classList.remove("hidden");
+  else if (viewId === "scanning") viewScanning.classList.remove("hidden");
+  else if (viewId === "results") viewResults.classList.remove("hidden");
+  else if (viewId === "batchSummary") viewBatchSummary.classList.remove("hidden");
+}
 
-  const scoreNumber = document.getElementById("scoreNumber");
-  scoreNumber.textContent = `${scorePct}%`;
-  scoreNumber.style.color = scorePct >= 70 ? "var(--threat-critical)" : scorePct >= 40 ? "var(--threat-medium)" : "var(--threat-safe)";
+function showError(msg) {
+  errorMessage.innerText = msg;
+  errorToast.classList.remove("hidden");
+  setTimeout(() => {
+    errorToast.classList.add("hidden");
+  }, 6000);
+}
 
-  document.getElementById("emailSubject").textContent = data.subject || "No Subject";
-  document.getElementById("emailSender").textContent = data.sender || "Unknown Sender";
+// ═══════════════════════════════════════════════════════════════════
+// 2. AUTHENTICATION LIFECYCLE
+// ═══════════════════════════════════════════════════════════════════
 
-  // Top 3 Signals
-  const signalsList = document.getElementById("signalsList");
-  signalsList.innerHTML = "";
-  const signals = data.signals || [];
-  if (signals.length === 0) {
-    signalsList.innerHTML = `
-      <div class="signal-card safe">
-        <div class="signal-title">Cryptographic Alignment Clear</div>
-        <div class="signal-desc">All SPF, DKIM, and DMARC authentication protocols passed.</div>
-      </div>
-    `;
+async function checkAuthStatus() {
+  try {
+    const res = await chrome.runtime.sendMessage({ type: "AUTH_STATUS" });
+    if (res && res.connected) {
+      userEmailLabel.innerText = res.user_email || "Google Authorized";
+      statusIndicator.classList.remove("disconnected");
+      statusText.innerText = "Connected";
+      showView("connected");
+    } else {
+      statusIndicator.classList.add("disconnected");
+      statusText.innerText = "Offline";
+      showView("disconnected");
+    }
+  } catch (e) {
+    showView("disconnected");
+  }
+}
+
+async function handleConnect() {
+  btnConnectGmail.disabled = true;
+  btnConnectGmail.innerText = "Connecting Google OAuth...";
+  try {
+    const res = await chrome.runtime.sendMessage({ type: "AUTH_CONNECT" });
+    if (res && res.status === "connected") {
+      userEmailLabel.innerText = res.user_email;
+      statusText.innerText = "Connected";
+      showView("connected");
+      await loadRecentScans();
+    } else if (res && res.error) {
+      showError(res.error);
+      showView("disconnected");
+    }
+  } catch (e) {
+    showError(e.message || "Failed to complete Google OAuth.");
+    showView("disconnected");
+  } finally {
+    btnConnectGmail.disabled = false;
+    btnConnectGmail.innerHTML = `<span>Authorize with Google OAuth</span><span class="arrow-icon">&rarr;</span>`;
+  }
+}
+
+async function handleDisconnect() {
+  await chrome.runtime.sendMessage({ type: "AUTH_DISCONNECT" });
+  statusText.innerText = "Offline";
+  showView("disconnected");
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 3. INBOX BATCH SCANNING
+// ═══════════════════════════════════════════════════════════════════
+
+function startInboxScan() {
+  const query = scanQuerySelect.value;
+  const count = parseInt(scanCountSelect.value, 10) || 20;
+
+  showView("scanning");
+  progressBar.style.width = "5%";
+  scanProgressCount.innerText = `Connecting to Gmail API...`;
+  activeScanSubject.innerText = "Listing recent inbox messages";
+  activeScanStage.innerText = "Authenticating RFC822 Stream";
+
+  const port = chrome.runtime.connect({ name: "traceguard-inbox-scan" });
+
+  port.postMessage({
+    type: "START_INBOX_SCAN",
+    options: { count, query }
+  });
+
+  port.onMessage.addListener((msg) => {
+    if (msg.type === "SCAN_PROGRESS") {
+      const pct = Math.max(5, Math.round((msg.done / msg.total) * 100));
+      progressBar.style.width = `${pct}%`;
+      scanProgressCount.innerText = `Analyzing ${msg.done + 1} of ${msg.total} Messages...`;
+      activeScanSubject.innerText = msg.currentSubject || "Processing MIME structure...";
+      activeScanStage.innerText = msg.stage || "Forensic Pipeline DAG";
+    } else if (msg.type === "SCAN_COMPLETE") {
+      renderBatchSummary(msg);
+      loadRecentScans();
+    } else if (msg.type === "SCAN_ERROR") {
+      showError(msg.error || "Inbox scan encountered an error.");
+      showView("connected");
+    }
+  });
+
+  port.onDisconnect.addListener(() => {
+    if (currentActiveView === "scanning") {
+      showView("connected");
+    }
+  });
+}
+
+function renderBatchSummary(data) {
+  const { results = [], summary = { critical: 0, suspicious: 0, safe: 0 } } = data;
+  batchCriticalCount.innerText = summary.critical || 0;
+  batchSuspiciousCount.innerText = summary.suspicious || 0;
+  batchSafeCount.innerText = summary.safe || 0;
+
+  batchResultsList.innerHTML = "";
+  if (results.length === 0) {
+    batchResultsList.innerHTML = `<div class="empty-state">No matching emails found for this query.</div>`;
   } else {
-    signals.slice(0, 3).forEach((s) => {
-      const card = document.createElement("div");
-      card.className = `signal-card ${scorePct >= 70 ? "critical" : "caution"}`;
-      card.innerHTML = `
-        <div class="signal-title">⚠ ${escapeHtml(s.title)}</div>
-        <div class="signal-desc">${escapeHtml(s.desc)}</div>
+    results.forEach((item) => {
+      const el = document.createElement("div");
+      el.className = "recent-item";
+      const score = Math.round((item.threat_score || 0) * 100);
+      let badgeClass = "safe";
+      if (item.threat_score >= 0.75) badgeClass = "critical";
+      else if (item.threat_score >= 0.35) badgeClass = "suspicious";
+
+      el.innerHTML = `
+        <div class="recent-meta">
+          <div class="recent-subj truncate">${item.subject || "(No Subject)"}</div>
+          <div class="recent-sender truncate">${item.from_address || item.claimed_domain || "Unknown"}</div>
+        </div>
+        <span class="score-badge-mini ${badgeClass}">${score}%</span>
       `;
-      signalsList.appendChild(card);
+
+      el.addEventListener("click", () => {
+        renderEmailDetail(item);
+      });
+
+      batchResultsList.appendChild(el);
     });
   }
 
-  // Sender Identity Comparison
-  document.getElementById("claimedDomain").textContent = data.claimed_domain || "acme.com";
-  const actualEl = document.getElementById("actualDomain");
-  actualEl.textContent = data.actual_domain || "secure-exchange-transfer.xyz";
-  if (data.claimed_domain === data.actual_domain) {
-    actualEl.classList.remove("mismatch");
+  showView("batchSummary");
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 4. ACTIVE WEBMAIL SCAN
+// ═══════════════════════════════════════════════════════════════════
+
+async function handleScanCurrentEmail() {
+  btnScanCurrentEmail.disabled = true;
+  btnScanCurrentEmail.innerText = "Inspecting Active Tab...";
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) throw new Error("No active browser tab detected.");
+
+    // Send extract message to content script
+    chrome.tabs.sendMessage(tab.id, { action: "EXTRACT_AND_ANALYZE" }, async (response) => {
+      if (chrome.runtime.lastError || !response) {
+        showError("Please open an email inside Gmail or Outlook to scan.");
+        btnScanCurrentEmail.disabled = false;
+        btnScanCurrentEmail.innerHTML = `<span>Scan Open Webmail Tab</span><span class="arrow-icon">&rarr;</span>`;
+        return;
+      }
+
+      if (response.bundle) {
+        renderEmailDetail(response.bundle);
+      } else if (response.error) {
+        showError(response.error);
+      }
+      btnScanCurrentEmail.disabled = false;
+      btnScanCurrentEmail.innerHTML = `<span>Scan Open Webmail Tab</span><span class="arrow-icon">&rarr;</span>`;
+    });
+  } catch (e) {
+    showError(e.message || "Failed to inspect active tab.");
+    btnScanCurrentEmail.disabled = false;
+    btnScanCurrentEmail.innerHTML = `<span>Scan Open Webmail Tab</span><span class="arrow-icon">&rarr;</span>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 5. DETAIL INVESTIGATION DOSSIER VIEW
+// ═══════════════════════════════════════════════════════════════════
+
+function renderEmailDetail(item) {
+  currentActiveEmailId = item.email_id || item.emailId;
+
+  const score = Math.round((item.threat_score || item.threatScore || 0) * 100);
+  const infra = Math.round((item.infra_confidence || item.infraConfidence || 0.8) * 100);
+  const attrib = Math.round((item.attribution_confidence || item.attributionConfidence || 0.4) * 100);
+
+  scoreNumber.innerText = `${score}%`;
+  emailSubject.innerText = item.subject || "(No Subject)";
+  emailSender.innerText = item.from_address || item.sender || "Unknown Sender";
+
+  // Score badge coloring
+  if (score >= 75) {
+    verdictTag.innerText = item.classification || "MALICIOUS";
+    verdictTag.style.color = "var(--threat-critical)";
+    actionTag.innerText = "QUARANTINED";
+    scoreNumber.style.color = "var(--threat-critical)";
+  } else if (score >= 35) {
+    verdictTag.innerText = item.classification || "SUSPICIOUS";
+    verdictTag.style.color = "var(--threat-warning)";
+    actionTag.innerText = "FLAGGED";
+    scoreNumber.style.color = "var(--threat-warning)";
   } else {
-    actualEl.classList.add("mismatch");
+    verdictTag.innerText = "BENIGN / SAFE";
+    verdictTag.style.color = "var(--threat-safe)";
+    actionTag.innerText = "DELIVERED";
+    scoreNumber.style.color = "var(--threat-safe)";
   }
 
-  // 3-Axis Calibrated Scoring
-  document.getElementById("axisThreatVal").textContent = `${scorePct}%`;
-  document.getElementById("axisThreatBar").style.width = `${scorePct}%`;
+  // Key Signals
+  signalsList.innerHTML = "";
+  const signals = item.key_signals || item.keySignals || ["Anomalous sending path", "Cryptographic verification mismatch", "Late fusion intent classification"];
+  signals.slice(0, 3).forEach((sig) => {
+    const row = document.createElement("div");
+    row.className = "signal-row";
+    row.innerHTML = `<span class="signal-bullet">&bull;</span><span>${sig}</span>`;
+    signalsList.appendChild(row);
+  });
 
-  document.getElementById("axisInfraVal").textContent = `${infraPct}%`;
-  document.getElementById("axisInfraBar").style.width = `${infraPct}%`;
+  // Sender Comparison
+  claimedDomain.innerText = item.claimed_domain || item.claimedDomain || (item.from_address ? item.from_address.split("@")[1] : "sender.com");
+  actualDomain.innerText = item.actual_domain || item.actualDomain || item.claimed_domain || "relay.net";
+  if (claimedDomain.innerText !== actualDomain.innerText) {
+    actualDomain.classList.add("mismatch");
+  } else {
+    actualDomain.classList.remove("mismatch");
+  }
 
-  document.getElementById("axisAttrVal").textContent = `${attrPct}%`;
-  document.getElementById("axisAttrBar").style.width = `${attrPct}%`;
+  // 3-Axis bars
+  axisThreatVal.innerText = `${score}%`;
+  axisThreatBar.style.width = `${score}%`;
+  axisInfraVal.innerText = `${infra}%`;
+  axisInfraBar.style.width = `${infra}%`;
+  axisAttrVal.innerText = `${attrib}%`;
+  axisAttrBar.style.width = `${attrib}%`;
 
   // Auth Grid
-  renderAuthCell("authSpfVal", data.auth.spf);
-  renderAuthCell("authDkimVal", data.auth.dkim);
-  renderAuthCell("authDmarcVal", data.auth.dmarc);
-  renderAuthCell("authArcVal", data.auth.arc);
+  const auth = item.auth || {};
+  authSpfVal.innerText = auth.spf || "FAIL";
+  authSpfVal.className = `auth-status ${auth.spf === "PASS" ? "pass" : "fail"}`;
 
-  // Quick Action Button
-  const btnPrimary = document.getElementById("btnPrimaryAction");
-  btnPrimary.textContent = data.primary_action_label || (scorePct >= 70 ? "Quarantine Email" : "Flag for Review");
-  btnPrimary.className = scorePct >= 70 ? "btn-action-danger flex-1" : "btn-action-primary flex-1";
+  authDkimVal.innerText = auth.dkim || "FAIL";
+  authDkimVal.className = `auth-status ${auth.dkim === "PASS" ? "pass" : "fail"}`;
+
+  authDmarcVal.innerText = auth.dmarc || "FAIL";
+  authDmarcVal.className = `auth-status ${auth.dmarc === "PASS" ? "pass" : "fail"}`;
+
+  authArcVal.innerText = auth.arc || "PASS";
+  authArcVal.className = `auth-status ${auth.arc === "PASS" ? "pass" : "fail"}`;
+
+  showView("results");
 }
 
-function renderAuthCell(elementId, result) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  const res = (result || "FAIL").toUpperCase();
-  el.textContent = res;
-  el.className = `auth-status ${res === "PASS" ? "pass" : "fail"}`;
+// ═══════════════════════════════════════════════════════════════════
+// 6. RECENT SCANS HISTORY
+// ═══════════════════════════════════════════════════════════════════
+
+async function loadRecentScans() {
+  try {
+    const res = await chrome.runtime.sendMessage({ type: "GET_RECENT_SCANS" });
+    const scans = res ? res.recent_scans || [] : [];
+    recentCountBadge.innerText = scans.length;
+
+    recentScansList.innerHTML = "";
+    if (scans.length === 0) {
+      recentScansList.innerHTML = `<div class="empty-state">No recent scans. Run an inbox scan to begin.</div>`;
+      return;
+    }
+
+    scans.forEach((s) => {
+      const el = document.createElement("div");
+      el.className = "recent-item";
+      const score = Math.round((s.threatScore || s.threat_score || 0) * 100);
+      let badgeClass = "safe";
+      if (score >= 75) badgeClass = "critical";
+      else if (score >= 35) badgeClass = "suspicious";
+
+      el.innerHTML = `
+        <div class="recent-meta">
+          <div class="recent-subj truncate">${s.subject || "(No Subject)"}</div>
+          <div class="recent-sender truncate">${s.sender || s.from_address || "Unknown"}</div>
+        </div>
+        <span class="score-badge-mini ${badgeClass}">${score}%</span>
+      `;
+
+      el.addEventListener("click", () => {
+        renderEmailDetail(s);
+      });
+
+      recentScansList.appendChild(el);
+    });
+  } catch (e) {
+    console.error("Failed to load recent scans:", e);
+  }
 }
 
-function escapeHtml(str) {
-  if (!str) return "";
-  return str.replace(/[&<>"']/g, (m) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  }[m]));
+// ═══════════════════════════════════════════════════════════════════
+// 7. EVENT LISTENERS
+// ═══════════════════════════════════════════════════════════════════
+
+function setupEventListeners() {
+  btnConnectGmail.addEventListener("click", handleConnect);
+  btnDisconnect.addEventListener("click", handleDisconnect);
+  btnStartInboxScan.addEventListener("click", startInboxScan);
+  btnScanCurrentEmail.addEventListener("click", handleScanCurrentEmail);
+  btnBatchDone.addEventListener("click", () => showView("connected"));
+  btnBackToDashboard.addEventListener("click", () => showView("connected"));
+
+  btnDismissError.addEventListener("click", () => {
+    errorToast.classList.add("hidden");
+  });
+
+  btnOpenFullInvestigation.addEventListener("click", () => {
+    if (currentActiveEmailId) {
+      chrome.tabs.create({
+        url: `${WEB_APP_URL}/investigation?id=${currentActiveEmailId}`
+      });
+    } else {
+      chrome.tabs.create({ url: `${WEB_APP_URL}/investigation` });
+    }
+  });
 }

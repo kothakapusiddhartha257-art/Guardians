@@ -15,6 +15,11 @@ class ClientCredentialsRequest(BaseModel):
     redirect_uri: Optional[str] = "http://127.0.0.1:8000/api/v1/oauth/gmail/callback"
 
 
+class OAuthExchangeRequest(BaseModel):
+    code: str
+    redirect_uri: Optional[str] = None
+
+
 @router.get("/status")
 async def get_gmail_oauth_status():
     """Check current Google OAuth 2.0 configuration, authorization status, and authorized email."""
@@ -54,6 +59,36 @@ async def get_google_auth_url(redirect_uri: Optional[str] = Query(None)):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to generate Google auth URL: {str(e)}")
+
+
+@router.post("/exchange")
+async def exchange_google_oauth_code(req: OAuthExchangeRequest):
+    """Exchanges Google authorization code for access token via backend without exposing client secret in client extensions."""
+    redirect_uri = req.redirect_uri or "http://127.0.0.1:8000/api/v1/oauth/gmail/callback"
+    try:
+        token_data = gmail_oauth_manager.exchange_code_for_token(req.code, redirect_uri)
+        return {
+            "status": "success",
+            "access_token": token_data.get("token"),
+            "expires_in": 3600,
+            "user_email": token_data.get("user_email", "authenticated.user@gmail.com"),
+            "scopes": token_data.get("scopes", [])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Token exchange failed: {str(e)}")
+
+
+@router.post("/refresh")
+async def refresh_google_oauth_token():
+    """Silently refreshes Google OAuth access token using server-persisted refresh token."""
+    creds = gmail_oauth_manager.get_valid_credentials()
+    if not creds or not creds.token:
+        raise HTTPException(status_code=401, detail="No valid refresh token or authorization found.")
+    return {
+        "status": "success",
+        "access_token": creds.token,
+        "expires_in": 3600
+    }
 
 
 @router.get("/callback")

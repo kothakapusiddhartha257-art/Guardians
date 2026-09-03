@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="theme-obsidian">
+<html lang="en" data-theme="obsidian">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,125 +17,172 @@
             <span>TRACEGUARD</span>
             <span class="brand-badge">AI</span>
           </div>
-          <span class="brand-eyebrow">Email Intelligence</span>
+          <span class="brand-eyebrow">Forensic Gateway v2.0</span>
         </div>
       </div>
 
       <div class="header-right">
         <select id="themeSelect" class="theme-selector" title="Switch Theme">
-          <option value="theme-obsidian" selected>Obsidian</option>
-          <option value="theme-deep-space">Deep Space</option>
-          <option value="theme-forensic-paper">Forensic Paper</option>
-          <option value="theme-midnight-violet">Midnight Violet</option>
-          <option value="theme-arctic-intel">Arctic Intel</option>
+          <option value="obsidian" selected>Obsidian</option>
+          <option value="forensic-paper">Forensic Paper</option>
+          <option value="deep-space">Deep Space</option>
+          <option value="midnight-violet">Midnight Violet</option>
         </select>
         <div class="status-indicator" id="statusIndicator">
           <span class="status-pulse"></span>
-          <span class="status-text">Active</span>
+          <span class="status-text" id="statusText">Ready</span>
         </div>
       </div>
     </header>
 
-    <!-- Navigation / Mode Tabs -->
-    <nav class="mode-tabs">
-      <button class="mode-btn active" data-tab="tab-live">📧 Active Email</button>
-      <button class="mode-btn" data-tab="tab-manual">✍️ Manual</button>
-      <button class="mode-btn" data-tab="tab-url">🔗 Link</button>
-      <button class="mode-btn" data-tab="tab-presets">🚨 Presets</button>
-    </nav>
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VIEW 1: DISCONNECTED / CONNECT GMAIL                        -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="viewDisconnected" class="view-panel">
+      <div class="connect-card">
+        <div class="connect-icon">⚡</div>
+        <h2 class="connect-title">Connect Gmail Account</h2>
+        <p class="connect-desc">
+          Authorize TRACEGUARD to inspect inbound email messages and run deep cryptographic authentication, SMTP relay tracing, and AI threat scoring.
+        </p>
 
-    <!-- Tab 1: Live Webmail Scan -->
-    <section id="tab-live" class="tab-pane active">
-      <div class="scan-action-box">
-        <button id="btnScanWebmail" class="btn-action-primary">
-          <span>Scan Open Webmail Message</span>
-          <span class="btn-icon">⚡</span>
+        <button id="btnConnectGmail" class="btn-primary-action w-full">
+          <span>Authorize with Google OAuth</span>
+          <span class="arrow-icon">&rarr;</span>
         </button>
-      </div>
 
-      <div id="webmailMeta" class="webmail-meta-box hidden">
-        <div class="meta-line">
-          <span class="meta-label">Client:</span>
-          <span id="metaClient" class="meta-val">-</span>
-        </div>
-        <div class="meta-line">
-          <span class="meta-label">Subject:</span>
-          <span id="metaSubject" class="meta-val truncate">-</span>
+        <div class="security-notice">
+          <span class="shield-mini">🔒</span>
+          <span>Read-only access (<code class="font-mono">gmail.readonly</code>). No emails are ever modified or sent.</span>
         </div>
       </div>
     </section>
 
-    <!-- Tab 2: Manual Check -->
-    <section id="tab-manual" class="tab-pane">
-      <div class="form-group">
-        <label>Sender & Reply Address</label>
-        <input type="text" id="manualSender" placeholder="CEO John <ceo@company-secure.com>">
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VIEW 2: CONNECTED DASHBOARD & ACTIONS                       -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="viewConnected" class="view-panel hidden">
+      <!-- User Info Bar -->
+      <div class="user-bar">
+        <div class="user-meta">
+          <span class="user-dot"></span>
+          <span id="userEmailLabel" class="user-email truncate">user@gmail.com</span>
+        </div>
+        <button id="btnDisconnect" class="btn-disconnect" title="Disconnect Account">Disconnect</button>
       </div>
-      <div class="form-group">
-        <label>Subject Line</label>
-        <input type="text" id="manualSubject" placeholder="URGENT: Wire Transfer Required Before 5 PM">
+
+      <!-- Quick Action Cards -->
+      <div class="action-grid">
+        <!-- Action 1: Scan Inbox -->
+        <div class="action-card">
+          <div class="action-card-header">
+            <span class="action-tag-mini">INBOX SCAN</span>
+            <span class="action-icon">📥</span>
+          </div>
+          <h3 class="action-card-title">Scan Mailbox Messages</h3>
+          <p class="action-card-desc">Batch ingest recent inbound messages through the TRACEGUARD forensic DAG.</p>
+          
+          <div class="scan-controls-row">
+            <select id="scanQuerySelect" class="dropdown-small">
+              <option value="in:inbox" selected>Inbox (All)</option>
+              <option value="is:unread">Unread Only</option>
+              <option value="newer_than:7d">Last 7 Days</option>
+              <option value="has:attachment">With Attachments</option>
+            </select>
+
+            <select id="scanCountSelect" class="dropdown-small w-20">
+              <option value="10">10 msgs</option>
+              <option value="20" selected>20 msgs</option>
+              <option value="50">50 msgs</option>
+            </select>
+          </div>
+
+          <button id="btnStartInboxScan" class="btn-primary-action w-full mt-2">
+            <span>Run Forensic Inbox Scan</span>
+            <span class="arrow-icon">⚡</span>
+          </button>
+        </div>
+
+        <!-- Action 2: Scan Open Tab -->
+        <div class="action-card">
+          <div class="action-card-header">
+            <span class="action-tag-mini">ACTIVE EMAIL</span>
+            <span class="action-icon">📧</span>
+          </div>
+          <h3 class="action-card-title">Inspect Open Email</h3>
+          <p class="action-card-desc">Analyze the currently open webmail message in your active browser tab.</p>
+          <button id="btnScanCurrentEmail" class="btn-secondary-action w-full mt-2">
+            <span>Scan Open Webmail Tab</span>
+            <span class="arrow-icon">&rarr;</span>
+          </button>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Body Content</label>
-        <textarea id="manualBody" rows="2" placeholder="Paste email body or suspicious directive text..."></textarea>
-      </div>
-      <div class="btn-row">
-        <button id="btnManualAnalyze" class="btn-action-primary flex-1">Analyze</button>
-        <button id="btnManualSample" class="btn-action-secondary">Load Sample</button>
+
+      <!-- Recent Scans Section -->
+      <div class="recent-scans-box">
+        <div class="recent-header">
+          <span class="eyebrow-text">Recent Forensic Scans</span>
+          <span id="recentCountBadge" class="count-badge">0</span>
+        </div>
+        <div id="recentScansList" class="recent-list">
+          <div class="empty-state">No recent scans. Click "Run Forensic Inbox Scan" to begin.</div>
+        </div>
       </div>
     </section>
 
-    <!-- Tab 3: Link Check -->
-    <section id="tab-url" class="tab-pane">
-      <div class="form-group">
-        <label>Target URL / Link</label>
-        <input type="url" id="urlInput" placeholder="https://bit.ly/login-verify or http://185.23.11.4/auth">
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VIEW 3: ACTIVE SCANNING PROGRESS STREAM                     -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="viewScanning" class="view-panel hidden">
+      <div class="scanning-card">
+        <div class="scanning-header">
+          <div class="scanning-spinner"></div>
+          <div>
+            <span class="eyebrow-text">Forensic DAG Pipeline Active</span>
+            <h3 id="scanProgressCount" class="progress-title">Analyzing 1 of 20 Messages...</h3>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-track">
+          <div id="progressBar" class="progress-fill" style="width: 5%;"></div>
+        </div>
+
+        <!-- Currently Active Message -->
+        <div class="active-item-box">
+          <span class="meta-label">Current Subject:</span>
+          <p id="activeScanSubject" class="active-subject truncate">Connecting to Gmail API...</p>
+          <span id="activeScanStage" class="active-stage font-mono">Preserving RFC822 MIME bytes</span>
+        </div>
+
+        <!-- Real DAG Stages Checklist -->
+        <div class="stages-checklist">
+          <div class="stage-step done"><span class="step-icon">✓</span> Evidence Preservation (.EML Base64)</div>
+          <div class="stage-step done"><span class="step-icon">✓</span> MIME Structure & Header Normalization</div>
+          <div class="stage-step active"><span class="step-icon">●</span> Cryptographic Auth (SPF/DKIM/DMARC/ARC)</div>
+          <div class="stage-step active"><span class="step-icon">●</span> Reverse SMTP Relay Traversal</div>
+          <div class="stage-step active"><span class="step-icon">●</span> ML Intent & Homoglyph Spoof Detection</div>
+          <div class="stage-step pending"><span class="step-icon">○</span> Cross-Case Campaign Correlation</div>
+        </div>
       </div>
-      <button id="btnUrlInspect" class="btn-action-primary w-full">Inspect Link Destination</button>
     </section>
 
-    <!-- Tab 4: Presets -->
-    <section id="tab-presets" class="tab-pane">
-      <div class="form-group">
-        <label>Threat Scenario</label>
-        <select id="presetSelect" class="dropdown-input">
-          <option value="bec" selected>🚨 BEC Wire Transfer Fraud (94%)</option>
-          <option value="credential">⚠️ M365 Password Phish (88%)</option>
-          <option value="malware">☣️ Invoice EXE Malware (96%)</option>
-          <option value="clean">✅ Clean Security Digest (4%)</option>
-        </select>
-      </div>
-      <button id="btnLoadPreset" class="btn-action-primary w-full">Load & Inspect Preset</button>
-    </section>
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VIEW 4: SINGLE EMAIL VERDICT & INVESTIGATION DOSSIER        -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="viewResults" class="view-panel hidden">
+      <button id="btnBackToDashboard" class="btn-back">&larr; Back to Scans</button>
 
-    <!-- Analyzing Intelligence Pipeline State (Shown during scan) -->
-    <div id="analyzingPipeline" class="pipeline-card hidden">
-      <div class="pipeline-header">
-        <span class="eyebrow-text">Intelligence Pipeline</span>
-        <span class="pipeline-active-text">Analyzing Message...</span>
-      </div>
-      <ul class="pipeline-steps">
-        <li class="step done"><span class="step-check">✓</span> Extracting MIME headers</li>
-        <li class="step done"><span class="step-check">✓</span> Verifying cryptographic identity (SPF/DKIM)</li>
-        <li class="step active"><span class="step-dot">●</span> Reconstructing SMTP relay trust frontier</li>
-        <li class="step pending"><span class="step-dot">○</span> Checking URL redirects & homoglyphs</li>
-        <li class="step pending"><span class="step-dot">○</span> Correlating cross-case campaigns</li>
-      </ul>
-    </div>
-
-    <!-- Intelligence Results Section -->
-    <main id="resultsContainer" class="results-layout">
-      
       <!-- 1. EMAIL VERDICT HERO -->
       <section class="verdict-hero" id="verdictHero">
         <div class="verdict-top-bar">
-          <span class="verdict-tag" id="verdictTag">⚠ HIGH RISK</span>
+          <span class="verdict-tag" id="verdictTag">MALICIOUS</span>
           <span class="action-tag" id="actionTag">QUARANTINED</span>
         </div>
 
         <div class="verdict-center">
           <div class="verdict-score-group">
-            <span class="score-number" id="scoreNumber">76%</span>
+            <span class="score-number" id="scoreNumber">94%</span>
             <span class="score-label">THREAT SCORE</span>
           </div>
           <div class="verdict-meta">
@@ -153,14 +200,14 @@
       <section class="section-box">
         <div class="section-header">
           <span class="eyebrow-text">Why It Was Flagged</span>
-          <span class="section-badge">Top Signals</span>
+          <span class="section-badge">Key Signals</span>
         </div>
         <div class="signals-list" id="signalsList">
           <!-- Populated by JS -->
         </div>
       </section>
 
-      <!-- 3. SENDER IDENTITY MISMATCH -->
+      <!-- 3. SENDER IDENTITY COMPARISON -->
       <section class="section-box" id="senderIdentityBox">
         <div class="section-header">
           <span class="eyebrow-text">Sender Identity Comparison</span>
@@ -172,7 +219,7 @@
           </div>
           <div class="id-arrow">&darr;</div>
           <div class="id-col">
-            <span class="id-label">Actual Reply Path</span>
+            <span class="id-label">Actual Return Path</span>
             <span class="id-val mismatch" id="actualDomain">secure-exchange-transfer.xyz</span>
           </div>
         </div>
@@ -188,9 +235,9 @@
           <div class="axis-row">
             <div class="axis-meta">
               <span>Threat Severity</span>
-              <strong id="axisThreatVal" class="text-threat">76%</strong>
+              <strong id="axisThreatVal" class="text-threat">94%</strong>
             </div>
-            <div class="track"><div id="axisThreatBar" class="fill fill-threat" style="width: 76%;"></div></div>
+            <div class="track"><div id="axisThreatBar" class="fill fill-threat" style="width: 94%;"></div></div>
           </div>
           <div class="axis-row">
             <div class="axis-meta">
@@ -234,23 +281,54 @@
         </div>
       </section>
 
-      <!-- 6. QUICK ACTIONS & FULL INVESTIGATION REDIRECTION -->
+      <!-- 6. FULL INVESTIGATION DEEP LINK -->
       <div class="footer-actions">
-        <div class="quick-action-row" id="quickActionRow">
-          <button id="btnPrimaryAction" class="btn-action-danger flex-1">
-            Quarantine Email
-          </button>
-          <button id="btnSecondaryAction" class="btn-action-secondary">
-            Report
-          </button>
-        </div>
-
         <button id="btnOpenFullInvestigation" class="btn-full-investigation">
           <span>OPEN FORENSIC INVESTIGATION</span>
-          <span class="arrow-icon">→</span>
+          <span class="arrow-icon">&rarr;</span>
         </button>
       </div>
-    </main>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VIEW 5: BATCH SCAN SUMMARY                                  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="viewBatchSummary" class="view-panel hidden">
+      <div class="batch-header">
+        <div>
+          <span class="eyebrow-text">Batch Scan Completed</span>
+          <h2 class="batch-title">Inbox Forensic Report</h2>
+        </div>
+        <button id="btnBatchDone" class="btn-secondary-action">Done</button>
+      </div>
+
+      <!-- Batch Metric Counters -->
+      <div class="batch-metrics-row">
+        <div class="metric-pill critical">
+          <span class="m-val" id="batchCriticalCount">0</span>
+          <span class="m-lbl">Critical</span>
+        </div>
+        <div class="metric-pill suspicious">
+          <span class="m-val" id="batchSuspiciousCount">0</span>
+          <span class="m-lbl">Suspicious</span>
+        </div>
+        <div class="metric-pill safe">
+          <span class="m-val" id="batchSafeCount">0</span>
+          <span class="m-lbl">Clean</span>
+        </div>
+      </div>
+
+      <!-- Batch Item List -->
+      <div id="batchResultsList" class="batch-list">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- Error Banner / Notification -->
+    <div id="errorToast" class="error-toast hidden">
+      <span id="errorMessage">An unexpected error occurred.</span>
+      <button id="btnDismissError" class="toast-close">&times;</button>
+    </div>
   </div>
 
   <script src="detector.js"></script>

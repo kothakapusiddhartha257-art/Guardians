@@ -1,3 +1,4 @@
+import base64
 import pytest
 from fastapi.testclient import TestClient
 from backend.main import app
@@ -40,7 +41,7 @@ def test_upload_and_investigate_api(client):
     assert len(pdf_res.content) > 1000
 
     # 4. Get STIX report
-    stix_res = client.get(f"/api/v1/emails/{email_id}/report.stix")
+    stix_res = client.get(f"/api/v1/emails/{email_id}/stix.json")
     assert stix_res.status_code == 200
     assert stix_res.json()["type"] == "bundle"
 
@@ -48,3 +49,22 @@ def test_upload_and_investigate_api(client):
     dash_res = client.get("/api/v1/dashboard/summary")
     assert dash_res.status_code == 200
     assert dash_res.json()["emails_analyzed"] >= 1
+
+
+def test_ingest_raw_email_endpoint(client):
+    # Test base64 ingestion from extension
+    b64_eml = base64.b64encode(DEMO_BEC_EMAIL.encode("utf-8")).decode("utf-8")
+    res = client.post("/api/v1/emails/ingest", json={
+        "raw_eml_base64": b64_eml,
+        "gmail_message_id": "18f0a3e8b4c2d1e0",
+        "case_id": "CASE-EXT-TEST-01"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "COMPLETE"
+    assert data["threat_score"] > 0.70
+    assert data["classification"] == "BEC"
+    assert "key_signals" in data
+    assert "auth" in data
+    assert data["auth"]["spf"] in ["FAIL", "NONE", "PASS"]
+    assert data["gmail_message_id"] == "18f0a3e8b4c2d1e0"
