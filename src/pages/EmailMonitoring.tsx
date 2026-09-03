@@ -403,11 +403,20 @@ export const EmailMonitoring: React.FC = () => {
                 {gmailStatus.email || 'kingkmn786@gmail.com'}
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-mutedText font-mono">STATUS:</span>
-                {gmailStatus.configured ? (
+                {gmailStatus.connected ? (
                   <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-threatSafe/15 text-threatSafe border border-threatSafe/30">
                     <span className="size-1.5 rounded-full bg-threatSafe animate-pulse"></span>
                     CONNECTED
+                  </span>
+                ) : gmailError ? (
+                  <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-threatCritical/15 text-threatCritical border border-threatCritical/30">
+                    <span className="size-1.5 rounded-full bg-threatCritical"></span>
+                    AUTH FAILED
+                  </span>
+                ) : gmailStatus.configured ? (
+                  <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-primary/15 text-primary border border-primary/30">
+                    <span className="size-1.5 rounded-full bg-primary"></span>
+                    CONFIGURED (CLICK TEST)
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-threatHigh/15 text-threatHigh border border-threatHigh/30">
