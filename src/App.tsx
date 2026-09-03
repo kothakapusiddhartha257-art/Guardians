@@ -23,6 +23,8 @@ export function App() {
               <Route path="/" element={<Dashboard onOpenUpload={() => setIsUploadOpen(true)} />} />
               <Route path="/monitoring" element={<EmailMonitoring />} />
               <Route path="/investigation" element={<Investigation />} />
+              <Route path="/report/:id" element={<Investigation />} />
+              <Route path="/report" element={<Investigation />} />
               <Route path="/cases" element={<Cases />} />
               <Route path="/campaigns" element={<Campaigns />} />
               <Route path="*" element={<Navigate to="/" replace />} />

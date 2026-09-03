@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Shield, ShieldAlert, ShieldCheck, FileText, Globe, Route, Server,
@@ -20,8 +20,9 @@ const mapPinIcon = L.divIcon({
 
 export const Investigation: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const { id: routeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const emailId = searchParams.get('id');
+  const emailId = routeId || searchParams.get('id');
   const lensParam = searchParams.get('lens') || searchParams.get('tab');
 
   const [bundle, setBundle] = useState<any>(null);
@@ -143,6 +144,11 @@ export const Investigation: React.FC = () => {
               <span className="eyebrow text-primary">
                 CASE #{bundle.case_id}
               </span>
+              {bundle.report_id && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-primary/15 text-primary border border-primary/30">
+                  {bundle.report_id}
+                </span>
+              )}
               {bundle.related_cases_count > 0 && (
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-attribution/15 text-attribution border border-attribution/30 flex items-center gap-1.5">
                   <GitBranch className="size-3" />
