@@ -1,6 +1,12 @@
 # TRACEGUARD AI
 ## AI-Powered Email Threat Detection, GeoLocation & Digital Forensic Intelligence Platform
 ### *SIH26106 — "From Detection to Investigation"*
+**Team Name:** Guardians | **Theme:** Blockchain & Cybersecurity | **Problem Statement:** SIH26106
+
+> 📄 **Official Submission Documents:**
+> - [SIH26106 Official Proposal & Architecture](SIH26106_TRACEGUARD_PROPOSAL.md)
+> - [Comprehensive System Forensic Specification](TRACEGUARD_SYSTEM_DOCUMENTATION.md)
+> - [Chromium Browser Extension Guide](extension/README.md)
 
 ---
 
